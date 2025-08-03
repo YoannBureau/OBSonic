@@ -1,6 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 
 // Create a state file in the user data directory
 const stateFilePath = path.join(os.homedir(), '.obs-playlist-player-state.json');
@@ -41,4 +41,4 @@ class StateManager {
     }
 }
 
-module.exports = StateManager;
+export default StateManager;

@@ -1,8 +1,9 @@
-const fs = require('fs').promises;
-const fsSync = require('fs');
-const path = require('path');
-const { parseFile } = require('music-metadata');
-const StateManager = require('./stateManager');
+import fs from 'fs';
+import path from 'path';
+import { parseFile } from 'music-metadata';
+import StateManager from './stateManager.js';
+
+const { promises: fsPromises } = fs;
 
 class MusicManager {
     constructor(playlistsDir, socketIo = null) {
@@ -66,7 +67,7 @@ class MusicManager {
             // Clear existing playlists to ensure deleted folders are removed
             this.playlists.clear();
             
-            const entries = await fs.readdir(this.playlistsDir, { withFileTypes: true });
+            const entries = await fsPromises.readdir(this.playlistsDir, { withFileTypes: true });
             const playlistDirs = entries.filter(entry => entry.isDirectory());
 
             for (const dir of playlistDirs) {
@@ -86,7 +87,7 @@ class MusicManager {
 
     async loadSongsFromDirectory(dirPath) {
         try {
-            const files = await fs.readdir(dirPath);
+            const files = await fsPromises.readdir(dirPath);
             const mp3Files = files.filter(file => path.extname(file).toLowerCase() === '.mp3');
             
             const songs = [];
@@ -275,7 +276,7 @@ class MusicManager {
     startWatching() {
         try {
             console.log('Starting playlist directory watcher...');
-            this.watcher = fsSync.watch(this.playlistsDir, { persistent: true }, async (eventType, filename) => {
+            this.watcher = fs.watch(this.playlistsDir, { persistent: true }, async (eventType, filename) => {
                 console.log(`Playlist directory change detected: ${eventType} - ${filename}`);
                 
                 // Debounce rapid changes (wait 1 second before reloading)
@@ -361,4 +362,4 @@ class MusicManager {
     }
 }
 
-module.exports = MusicManager;
+export default MusicManager;
