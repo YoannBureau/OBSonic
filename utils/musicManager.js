@@ -2,6 +2,7 @@ const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
 const { parseFile } = require('music-metadata');
+const StateManager = require('./stateManager');
 
 class MusicManager {
     constructor(playlistsDir, socketIo = null) {
@@ -22,9 +23,38 @@ class MusicManager {
     async initialize() {
         await this.loadPlaylists();
         if (this.playlists.size > 0) {
-            // Start with first playlist alphabetically
-            const firstPlaylist = Array.from(this.playlists.keys()).sort()[0];
-            await this.switchPlaylist(firstPlaylist);
+            // Try to restore the last playlist
+            let targetPlaylist = null;
+            
+            // First check environment variable (from main process)
+            if (process.env.LAST_PLAYLIST) {
+                targetPlaylist = process.env.LAST_PLAYLIST;
+                console.log(`Found last playlist from environment: ${targetPlaylist}`);
+            }
+            
+            // Fallback to StateManager
+            if (!targetPlaylist) {
+                targetPlaylist = StateManager.getLastPlaylist();
+                if (targetPlaylist) {
+                    console.log(`Found last playlist from state file: ${targetPlaylist}`);
+                }
+            }
+            
+            // Verify the playlist still exists
+            if (targetPlaylist && this.playlists.has(targetPlaylist)) {
+                await this.switchPlaylist(targetPlaylist);
+                console.log(`Restored last playlist: ${targetPlaylist}`);
+            } else {
+                // Fallback to first playlist alphabetically
+                const firstPlaylist = Array.from(this.playlists.keys()).sort()[0];
+                await this.switchPlaylist(firstPlaylist);
+                console.log(`Started with first available playlist: ${firstPlaylist}`);
+                
+                // If no target playlist was found, save the fallback as the new last playlist
+                if (!targetPlaylist) {
+                    console.log(`No previous playlist found, saving ${firstPlaylist} as default`);
+                }
+            }
         }
         
         // Start watching for playlist changes
@@ -120,6 +150,9 @@ class MusicManager {
         this.currentSong = this.shuffledSongs[0];
         this.isPlaying = true;
         this.isPaused = false;
+
+        // Save the current playlist to state
+        StateManager.saveLastPlaylist(playlistName);
 
         console.log(`Switched to playlist: ${playlistName}`);
     }

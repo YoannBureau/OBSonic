@@ -1,10 +1,20 @@
 const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
+const StateManager = require('./utils/stateManager');
+
+// Import electron-store dynamically to handle ES module requirement
+let Store;
+async function initializeStore() {
+    const electronStore = await import('electron-store');
+    Store = electronStore.default;
+    return new Store();
+}
 
 // Keep a global reference of the window object
 let mainWindow;
 let serverProcess;
+let store;
 
 function createWindow() {
     // Create the browser window for the remote control
@@ -93,10 +103,28 @@ function createMenu() {
 async function startApp() {
     console.log('Starting server...');
     
-    // Start the Node.js server
+    // Initialize electron-store
+    try {
+        store = await initializeStore();
+        console.log('Electron store initialized');
+    } catch (error) {
+        console.warn('Failed to initialize electron-store, using fallback:', error.message);
+    }
+    
+    // Get the last playlist from store
+    const lastPlaylist = getLastPlaylist();
+    console.log(`Last playlist from store: ${lastPlaylist}`);
+    
+    // Start the Node.js server with environment variable for last playlist
+    const env = { ...process.env };
+    if (lastPlaylist) {
+        env.LAST_PLAYLIST = lastPlaylist;
+    }
+    
     serverProcess = spawn('node', ['server.js'], {
         cwd: __dirname,
-        stdio: 'inherit'
+        stdio: 'inherit',
+        env: env
     });
 
     // Wait for server to be ready
@@ -162,6 +190,26 @@ app.on('before-quit', () => {
         serverProcess.kill();
     }
 });
+
+// Helper function to save playlist state
+function savePlaylistState(playlistName) {
+    if (store) {
+        store.set('lastPlaylist', playlistName);
+    }
+    StateManager.saveLastPlaylist(playlistName);
+    console.log(`Saved last playlist: ${playlistName}`);
+}
+
+// Helper function to get last playlist
+function getLastPlaylist() {
+    // Try electron-store first, then fallback to StateManager
+    let fromStore = null;
+    if (store) {
+        fromStore = store.get('lastPlaylist', null);
+    }
+    const fromState = StateManager.getLastPlaylist();
+    return fromStore || fromState;
+}
 
 // Security: Prevent new window creation
 app.on('web-contents-created', (event, contents) => {
