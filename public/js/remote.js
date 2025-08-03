@@ -13,6 +13,7 @@ class RemoteControl {
         this.previousBtn = document.getElementById('previous-btn');
         this.nextBtn = document.getElementById('next-btn');
         this.restartBtn = document.getElementById('restart-btn');
+        this.copyLinkBtn = document.getElementById('copy-link-btn');
 
         this.currentState = null;
         this.isConnected = false;
@@ -75,6 +76,11 @@ class RemoteControl {
 
         this.restartBtn.addEventListener('click', () => {
             this.socket.emit('restart-song');
+        });
+
+        // Copy link button
+        this.copyLinkBtn.addEventListener('click', () => {
+            this.copyPlayerLink();
         });
     }
 
@@ -179,6 +185,71 @@ class RemoteControl {
         this.currentSongTitle.textContent = 'Error';
         this.currentSongArtist.textContent = message;
         this.playbackState.textContent = 'Error';
+    }
+
+    async copyPlayerLink() {
+        try {
+            const playerUrl = `${window.location.origin}/player`;
+            await navigator.clipboard.writeText(playerUrl);
+            
+            // Update button text and style
+            const originalText = this.copyLinkBtn.textContent;
+            this.copyLinkBtn.textContent = '✅ Link copied !';
+            this.copyLinkBtn.classList.add('copied');
+            
+            // Reset after 2 seconds
+            setTimeout(() => {
+                this.copyLinkBtn.textContent = originalText;
+                this.copyLinkBtn.classList.remove('copied');
+            }, 2000);
+            
+        } catch (error) {
+            console.error('Failed to copy link:', error);
+            
+            // Fallback for older browsers
+            this.fallbackCopyPlayerLink();
+        }
+    }
+
+    fallbackCopyPlayerLink() {
+        try {
+            const playerUrl = `${window.location.origin}/player`;
+            const textArea = document.createElement('textarea');
+            textArea.value = playerUrl;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            if (successful) {
+                // Update button text and style
+                const originalText = this.copyLinkBtn.textContent;
+                this.copyLinkBtn.textContent = '✅ Link copied !';
+                this.copyLinkBtn.classList.add('copied');
+                
+                // Reset after 2 seconds
+                setTimeout(() => {
+                    this.copyLinkBtn.textContent = originalText;
+                    this.copyLinkBtn.classList.remove('copied');
+                }, 2000);
+            } else {
+                throw new Error('Copy command failed');
+            }
+        } catch (error) {
+            console.error('Fallback copy failed:', error);
+            
+            // Show error state
+            const originalText = this.copyLinkBtn.textContent;
+            this.copyLinkBtn.textContent = '❌ Copy failed';
+            
+            setTimeout(() => {
+                this.copyLinkBtn.textContent = originalText;
+            }, 2000);
+        }
     }
 }
 
