@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Remote Control</title>
+    <link rel="stylesheet" href="css/remote.css">
+</head>
+<body>
+    <div class="remote-container">
+        <div class="header">
+            <h1>🎵 Music Remote</h1>
+            <div class="status-indicator" id="connection-status">Connecting...</div>
+        </div>
+
+        <div class="current-info">
+            <div class="now-playing">
+                <h3>Now Playing</h3>
+                <div class="song-display">
+                    <div class="song-title" id="current-song-title">No song</div>
+                    <div class="song-artist" id="current-song-artist">No artist</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <div class="playlist-control">
+                <label for="playlist-select">Playlist:</label>
+                <select id="playlist-select" class="playlist-dropdown">
+                    <option value="">Select playlist...</option>
+                </select>
+            </div>
+
+            <div class="playback-controls">
+                <button id="previous-btn" class="control-btn" title="Previous Song">
+                    <span>⏮️</span>
+                </button>
+                <button id="restart-btn" class="control-btn" title="Restart Song">
+                    <span>⏪</span>
+                </button>
+                <button id="play-pause-btn" class="control-btn primary" title="Play/Pause">
+                    <span id="play-pause-icon">⏸️</span>
+                </button>
+                <button id="next-btn" class="control-btn" title="Next Song">
+                    <span>⏭️</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="status-section">
+            <div class="playlist-status">
+                <span id="playlist-name">No playlist selected</span>
+            </div>
+            <div class="playback-status">
+                <span id="playback-state">Stopped</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            <a href="/player" target="_blank" class="player-link">
+                📺 Open Player Window
+            </a>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/remote.js"></script>
+</body>
+</html>

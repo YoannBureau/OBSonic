@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player</title>
+    <link rel="stylesheet" href="css/player.css">
+</head>
+<body>
+    <div class="player-container">
+        <div class="cover-container">
+            <img id="album-cover" src="" alt="Album Cover" class="album-cover">
+            <div class="no-cover" id="no-cover">♪</div>
+        </div>
+        
+        <div class="song-info">
+            <h1 id="song-title">Loading...</h1>
+            <h2 id="song-artist">Please wait</h2>
+        </div>
+
+        <div class="playlist-info">
+            <span id="current-playlist">No playlist</span>
+        </div>
+
+        <audio id="audio-player" preload="metadata" autoplay></audio>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/player.js"></script>
+</body>
+</html>
