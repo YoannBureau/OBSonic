@@ -18,6 +18,8 @@ class MusicPlayer {
     initializeSocketListeners() {
         this.socket.on('connect', () => {
             console.log('Connected to server');
+            // Identify this client as a player
+            this.socket.emit('identify-as-player');
         });
 
         this.socket.on('state-update', (state) => {
