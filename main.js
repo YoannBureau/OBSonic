@@ -24,7 +24,7 @@ function createWindow() {
     // Create the browser window for the remote control
     mainWindow = new BrowserWindow({
         width: 450,
-        height: 705,
+        height: 700,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true
