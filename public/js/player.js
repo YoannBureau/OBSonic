@@ -76,7 +76,7 @@ class MusicPlayer {
         // Update song info
         if (state.currentSong) {
             this.updateSongDisplay(state.currentSong);
-            this.loadAudio(state.currentSong, state.isPlaying, state.isPaused);
+            this.loadAudio(state.currentSong, state.isPlaying, state.isPaused, state.shouldRestart);
         }
     }
 
@@ -101,23 +101,47 @@ class MusicPlayer {
         return `data:${picture.format};base64,${picture.data}`;
     }
 
-    loadAudio(song, isPlaying, isPaused) {
+    loadAudio(song, isPlaying, isPaused, shouldRestart = false) {
         const audioUrl = `/playlists/${song.relativePath}`;
+        const currentSrc = this.audioPlayer.src;
+        const fullAudioUrl = new URL(audioUrl, window.location.origin).href;
         
-        // Only reload if it's a different song
-        if (this.audioPlayer.src !== audioUrl) {
+        // Reload if it's a different song OR if we need to restart
+        if (currentSrc !== fullAudioUrl || shouldRestart) {
+            if (shouldRestart) {
+                console.log('Restarting song:', song.title);
+            } else {
+                console.log('Loading new song:', song.title);
+            }
+            
             this.audioPlayer.src = audioUrl;
             this.audioPlayer.load();
-        }
-
-        // Handle play/pause state
-        if (isPlaying && !isPaused) {
-            this.audioPlayer.play().catch(error => {
-                console.error('Failed to play audio:', error);
-                this.showError('Failed to play audio');
-            });
-        } else if (isPaused) {
-            this.audioPlayer.pause();
+            
+            // Wait for the audio to be ready before playing
+            if (isPlaying && !isPaused) {
+                this.audioPlayer.addEventListener('canplay', () => {
+                    this.audioPlayer.play().catch(error => {
+                        console.error('Failed to play audio:', error);
+                        this.showError('Failed to play audio');
+                    });
+                }, { once: true });
+            }
+        } else {
+            // Same song, just handle play/pause state
+            if (isPlaying && !isPaused) {
+                if (this.audioPlayer.paused) {
+                    console.log('Resuming playback');
+                    this.audioPlayer.play().catch(error => {
+                        console.error('Failed to resume audio:', error);
+                        this.showError('Failed to resume audio');
+                    });
+                }
+            } else if (isPaused) {
+                if (!this.audioPlayer.paused) {
+                    console.log('Pausing playback');
+                    this.audioPlayer.pause();
+                }
+            }
         }
     }
 
