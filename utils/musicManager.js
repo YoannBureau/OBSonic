@@ -13,6 +13,7 @@ class MusicManager {
         this.shuffledSongs = [];
         this.isPlaying = false;
         this.isPaused = false;
+        this.shouldRestart = false;
     }
 
     async initialize() {
@@ -178,6 +179,7 @@ class MusicManager {
 
         this.isPlaying = true;
         this.isPaused = false;
+        this.shouldRestart = true;
 
         console.log(`Restarting song: ${this.currentSong.title}`);
     }
@@ -202,15 +204,21 @@ class MusicManager {
     }
 
     async getCurrentState() {
-        return {
+        const state = {
             currentPlaylist: this.currentPlaylist,
             currentSong: this.currentSong,
             isPlaying: this.isPlaying,
             isPaused: this.isPaused,
+            shouldRestart: this.shouldRestart,
             playlists: await this.getPlaylists(),
             playedSongs: Array.from(this.playedSongs),
             totalSongs: this.shuffledSongs.length
         };
+        
+        // Reset the restart flag after sending it
+        this.shouldRestart = false;
+        
+        return state;
     }
 
     // Get cover image as base64 data URL
