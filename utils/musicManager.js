@@ -1,9 +1,10 @@
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 const { parseFile } = require('music-metadata');
 
 class MusicManager {
-    constructor(playlistsDir) {
+    constructor(playlistsDir, socketIo = null) {
         this.playlistsDir = playlistsDir;
         this.playlists = new Map();
         this.currentPlaylist = null;
@@ -14,6 +15,8 @@ class MusicManager {
         this.isPlaying = false;
         this.isPaused = false;
         this.shouldRestart = false;
+        this.socketIo = socketIo;
+        this.watcher = null;
     }
 
     async initialize() {
@@ -23,10 +26,16 @@ class MusicManager {
             const firstPlaylist = Array.from(this.playlists.keys()).sort()[0];
             await this.switchPlaylist(firstPlaylist);
         }
+        
+        // Start watching for playlist changes
+        this.startWatching();
     }
 
     async loadPlaylists() {
         try {
+            // Clear existing playlists to ensure deleted folders are removed
+            this.playlists.clear();
+            
             const entries = await fs.readdir(this.playlistsDir, { withFileTypes: true });
             const playlistDirs = entries.filter(entry => entry.isDirectory());
 
@@ -227,6 +236,95 @@ class MusicManager {
             return `data:${song.picture.format};base64,${song.picture.data}`;
         }
         return null;
+    }
+
+    // Start watching the playlists directory for changes
+    startWatching() {
+        try {
+            console.log('Starting playlist directory watcher...');
+            this.watcher = fsSync.watch(this.playlistsDir, { persistent: true }, async (eventType, filename) => {
+                console.log(`Playlist directory change detected: ${eventType} - ${filename}`);
+                
+                // Debounce rapid changes (wait 1 second before reloading)
+                clearTimeout(this.watcherTimeout);
+                this.watcherTimeout = setTimeout(async () => {
+                    await this.reloadPlaylists();
+                }, 1000);
+            });
+            
+            console.log('Playlist directory watcher started');
+        } catch (error) {
+            console.error('Error starting playlist watcher:', error);
+        }
+    }
+
+    // Stop watching the playlists directory
+    stopWatching() {
+        if (this.watcher) {
+            this.watcher.close();
+            this.watcher = null;
+            console.log('Playlist directory watcher stopped');
+        }
+        if (this.watcherTimeout) {
+            clearTimeout(this.watcherTimeout);
+        }
+    }
+
+    // Reload playlists and notify clients
+    async reloadPlaylists() {
+        try {
+            console.log('Reloading playlists...');
+            const oldPlaylistCount = this.playlists.size;
+            const oldPlaylists = new Set(this.playlists.keys());
+            
+            await this.loadPlaylists();
+            const newPlaylists = new Set(this.playlists.keys());
+            
+            // Check if current playlist still exists
+            if (this.currentPlaylist && !this.playlists.has(this.currentPlaylist)) {
+                console.log(`Current playlist "${this.currentPlaylist}" was removed`);
+                // Switch to first available playlist
+                if (this.playlists.size > 0) {
+                    const firstPlaylist = Array.from(this.playlists.keys()).sort()[0];
+                    await this.switchPlaylist(firstPlaylist);
+                } else {
+                    // No playlists left
+                    this.currentPlaylist = null;
+                    this.currentSong = null;
+                    this.shuffledSongs = [];
+                    this.playedSongs.clear();
+                    this.isPlaying = false;
+                }
+            }
+            
+            // Log changes
+            const added = [...newPlaylists].filter(p => !oldPlaylists.has(p));
+            const removed = [...oldPlaylists].filter(p => !newPlaylists.has(p));
+            
+            if (added.length > 0) {
+                console.log(`Added playlists: ${added.join(', ')}`);
+            }
+            if (removed.length > 0) {
+                console.log(`Removed playlists: ${removed.join(', ')}`);
+            }
+            
+            console.log(`Playlists reloaded: ${this.playlists.size} total`);
+            
+            // Notify connected clients if socketIo is available
+            if (this.socketIo) {
+                const state = await this.getCurrentState();
+                this.socketIo.emit('state-update', state);
+                console.log('Sent playlist update to clients');
+            }
+            
+        } catch (error) {
+            console.error('Error reloading playlists:', error);
+        }
+    }
+
+    // Cleanup method
+    cleanup() {
+        this.stopWatching();
     }
 }
 

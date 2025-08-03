@@ -12,8 +12,8 @@ const io = socketIo(server);
 const PORT = process.env.PORT || 3000;
 const PLAYLISTS_DIR = path.join(__dirname, 'playlists');
 
-// Initialize music manager
-const musicManager = new MusicManager(PLAYLISTS_DIR);
+// Initialize music manager (will be set after socket.io is created)
+let musicManager;
 
 // Serve static files
 app.use(express.static('public'));
@@ -119,6 +119,8 @@ io.on('connection', (socket) => {
 // Initialize and start server
 async function startServer() {
     try {
+        // Initialize music manager with socket.io instance
+        musicManager = new MusicManager(PLAYLISTS_DIR, io);
         await musicManager.initialize();
         console.log('Music manager initialized');
         
@@ -132,5 +134,28 @@ async function startServer() {
         process.exit(1);
     }
 }
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+    console.log('\nReceived SIGINT. Graceful shutdown...');
+    if (musicManager) {
+        musicManager.cleanup();
+    }
+    server.close(() => {
+        console.log('Server closed.');
+        process.exit(0);
+    });
+});
+
+process.on('SIGTERM', () => {
+    console.log('\nReceived SIGTERM. Graceful shutdown...');
+    if (musicManager) {
+        musicManager.cleanup();
+    }
+    server.close(() => {
+        console.log('Server closed.');
+        process.exit(0);
+    });
+});
 
 startServer();
