@@ -19,6 +19,9 @@ const PLAYLISTS_DIR = path.join(__dirname, 'playlists');
 // Initialize music manager (will be set after socket.io is created)
 let musicManager;
 
+// Track connected players
+let connectedPlayers = new Set();
+
 // Serve static files
 app.use(express.static('public'));
 app.use('/playlists', express.static(PLAYLISTS_DIR));
@@ -62,6 +65,16 @@ io.on('connection', (socket) => {
     // Send current state to newly connected client
     musicManager.getCurrentState().then(state => {
         socket.emit('state-update', state);
+        // Also send current player connection status
+        socket.emit('player-status', { playersConnected: connectedPlayers.size > 0 });
+    });
+
+    // Handle player identification
+    socket.on('identify-as-player', () => {
+        console.log('Player identified:', socket.id);
+        connectedPlayers.add(socket.id);
+        // Broadcast player connection status to all clients
+        io.emit('player-status', { playersConnected: connectedPlayers.size > 0 });
     });
 
     // Handle remote control commands
@@ -117,6 +130,13 @@ io.on('connection', (socket) => {
 
     socket.on('disconnect', () => {
         console.log('Client disconnected:', socket.id);
+        // Remove from players if it was a player
+        if (connectedPlayers.has(socket.id)) {
+            connectedPlayers.delete(socket.id);
+            console.log('Player disconnected:', socket.id);
+            // Broadcast updated player connection status
+            io.emit('player-status', { playersConnected: connectedPlayers.size > 0 });
+        }
     });
 });
 

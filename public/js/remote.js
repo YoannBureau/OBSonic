@@ -7,6 +7,7 @@ class RemoteControl {
         this.currentSongArtist = document.getElementById('current-song-artist');
         this.playlistName = document.getElementById('playlist-name');
         this.playbackState = document.getElementById('playback-state');
+        this.playerStatus = document.getElementById('player-status');
         this.playPauseBtn = document.getElementById('play-pause-btn');
         this.playPauseIcon = document.getElementById('play-pause-icon');
         this.previousBtn = document.getElementById('previous-btn');
@@ -43,6 +44,11 @@ class RemoteControl {
             this.isConnected = false;
             this.updateConnectionStatus();
         });
+
+        this.socket.on('player-status', (status) => {
+            console.log('Player status update:', status);
+            this.updatePlayerStatus(status.playersConnected);
+        });
     }
 
     initializeControls() {
@@ -74,7 +80,7 @@ class RemoteControl {
 
     updateConnectionStatus() {
         if (this.isConnected) {
-            this.connectionStatus.textContent = 'Connected';
+            this.connectionStatus.textContent = 'Server Connected';
             this.connectionStatus.className = 'status-indicator connected';
             this.enableControls();
         } else {
@@ -131,6 +137,16 @@ class RemoteControl {
             stateText = 'Paused';
         }
         this.playbackState.textContent = stateText;
+    }
+
+    updatePlayerStatus(playersConnected) {
+        if (playersConnected) {
+            this.playerStatus.textContent = 'Player Connected';
+            this.playerStatus.className = 'status-indicator connected';
+        } else {
+            this.playerStatus.textContent = 'No Player';
+            this.playerStatus.className = 'status-indicator disconnected';
+        }
     }
 
     updatePlayPauseButton(isPlaying, isPaused) {

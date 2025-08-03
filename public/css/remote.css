@@ -37,6 +37,13 @@ body {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+.status-indicators {
+    display: flex;
+    justify-content: center;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+}
+
 .status-indicator {
     padding: 0.3rem 0.8rem;
     border-radius: 15px;
@@ -182,6 +189,8 @@ body {
     font-size: 0.9rem;
 }
 
+
+
 .footer {
     text-align: center;
 }
@@ -211,6 +220,15 @@ body {
     
     .header h1 {
         font-size: 1.5rem;
+    }
+    
+    .status-indicators {
+        gap: 0.5rem;
+    }
+    
+    .status-indicator {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.6rem;
     }
     
     .playback-controls {
