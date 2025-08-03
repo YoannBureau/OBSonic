@@ -1,7 +1,11 @@
-const { app, BrowserWindow, Menu } = require('electron');
-const path = require('path');
-const { spawn } = require('child_process');
-const StateManager = require('./utils/stateManager');
+import { app, BrowserWindow, Menu } from 'electron';
+import path from 'path';
+import { spawn } from 'child_process';
+import StateManager from './utils/stateManager.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Import electron-store dynamically to handle ES module requirement
 let Store;
@@ -70,8 +74,9 @@ function createMenu() {
             submenu: [
                 {
                     label: 'Open Player in Browser',
-                    click: () => {
-                        require('electron').shell.openExternal('http://localhost:3000/player');
+                    click: async () => {
+                        const { shell } = await import('electron');
+                        shell.openExternal('http://localhost:3000/player');
                     }
                 },
                 {
@@ -140,9 +145,9 @@ function waitForServer(url, timeout = 30000) {
     return new Promise((resolve, reject) => {
         const startTime = Date.now();
         
-        function checkServer() {
-            const http = require('http');
-            const request = http.get(url, (res) => {
+        async function checkServer() {
+            const http = await import('http');
+            const request = http.default.get(url, (res) => {
                 resolve();
             });
             
@@ -213,10 +218,11 @@ function getLastPlaylist() {
 
 // Security: Prevent new window creation
 app.on('web-contents-created', (event, contents) => {
-    contents.on('new-window', (event, navigationUrl) => {
+    contents.on('new-window', async (event, navigationUrl) => {
         event.preventDefault();
         // Open in default browser instead
-        require('electron').shell.openExternal(navigationUrl);
+        const { shell } = await import('electron');
+        shell.openExternal(navigationUrl);
     });
 });
 
