@@ -1,0 +1,231 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.remote-container {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 2rem;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.header h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.status-indicator {
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.2);
+    display: inline-block;
+}
+
+.status-indicator.connected {
+    background: rgba(76, 175, 80, 0.8);
+}
+
+.status-indicator.disconnected {
+    background: rgba(244, 67, 54, 0.8);
+}
+
+.current-info {
+    margin-bottom: 2rem;
+}
+
+.now-playing h3 {
+    font-size: 1rem;
+    margin-bottom: 0.8rem;
+    opacity: 0.9;
+    text-align: center;
+}
+
+.song-display {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.song-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 0.3rem;
+    word-wrap: break-word;
+}
+
+.song-artist {
+    font-size: 1rem;
+    opacity: 0.8;
+    word-wrap: break-word;
+}
+
+.controls-section {
+    margin-bottom: 2rem;
+}
+
+.playlist-control {
+    margin-bottom: 1.5rem;
+}
+
+.playlist-control label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+    opacity: 0.9;
+}
+
+.playlist-dropdown {
+    width: 100%;
+    padding: 0.8rem;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.playlist-dropdown:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+.playback-controls {
+    display: flex;
+    justify-content: center;
+    gap: 0.8rem;
+}
+
+.control-btn {
+    width: 50px;
+    height: 50px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+.control-btn.primary {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.3);
+    font-size: 1.5rem;
+}
+
+.control-btn.primary:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.control-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.control-btn:disabled:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: none;
+}
+
+.status-section {
+    margin-bottom: 1.5rem;
+}
+
+.playlist-status,
+.playback-status {
+    background: rgba(0, 0, 0, 0.1);
+    padding: 0.6rem;
+    margin-bottom: 0.5rem;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.footer {
+    text-align: center;
+}
+
+.player-link {
+    color: white;
+    text-decoration: none;
+    padding: 0.8rem 1.5rem;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    display: inline-block;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+}
+
+.player-link:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+    .remote-container {
+        padding: 1.5rem;
+        margin: 0.5rem;
+    }
+    
+    .header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .playback-controls {
+        gap: 0.5rem;
+    }
+    
+    .control-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 1rem;
+    }
+    
+    .control-btn.primary {
+        width: 55px;
+        height: 55px;
+        font-size: 1.3rem;
+    }
+}

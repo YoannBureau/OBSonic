@@ -1,0 +1,133 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    color: white;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.player-container {
+    text-align: center;
+    max-width: 600px;
+    padding: 2rem;
+}
+
+.cover-container {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    margin: 0 auto 2rem;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.album-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+
+.no-cover {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 80px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.song-info {
+    margin-bottom: 2rem;
+}
+
+#song-title {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    word-wrap: break-word;
+    max-width: 100%;
+}
+
+#song-artist {
+    font-size: 1.5rem;
+    font-weight: 300;
+    opacity: 0.9;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    word-wrap: break-word;
+    max-width: 100%;
+}
+
+.playlist-info {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+}
+
+#current-playlist {
+    font-size: 1.2rem;
+    font-weight: bold;
+    opacity: 0.8;
+}
+
+#audio-player {
+    display: none;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .player-container {
+        padding: 1rem;
+    }
+    
+    .cover-container {
+        width: 250px;
+        height: 250px;
+    }
+    
+    #song-title {
+        font-size: 2rem;
+    }
+    
+    #song-artist {
+        font-size: 1.2rem;
+    }
+    
+    .no-cover {
+        font-size: 60px;
+    }
+}
+
+@media (max-width: 480px) {
+    .cover-container {
+        width: 200px;
+        height: 200px;
+    }
+    
+    #song-title {
+        font-size: 1.5rem;
+    }
+    
+    #song-artist {
+        font-size: 1rem;
+    }
+    
+    .no-cover {
+        font-size: 50px;
+    }
+}
