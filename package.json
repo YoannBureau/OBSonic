@@ -1,7 +1,7 @@
 {
-  "name": "obs-playlist-player",
+  "name": "obsonic",
   "version": "1.0.0",
-  "description": "MP3 playlist player with remote control for OBS",
+  "description": "A highly customisable music player for your streaming setup",
   "type": "module",
   "main": "main.js",
   "scripts": {

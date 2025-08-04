@@ -3,6 +3,7 @@ import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import path from 'path';
 import fs from 'fs';
+import { exec } from 'child_process';
 import MusicManager from './utils/musicManager.js';
 import { fileURLToPath } from 'url';
 
@@ -57,6 +58,46 @@ app.get('/api/current-state', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// Cross-platform function to open playlists folder in system explorer
+function openPlaylistsFolder() {
+    const platform = process.platform;
+    let command;
+
+    switch (platform) {
+        case 'win32':
+            // Windows - use start command to avoid explorer exit code issues
+            command = `start "" "${PLAYLISTS_DIR}"`;
+            break;
+        case 'darwin':
+            // macOS
+            command = `open "${PLAYLISTS_DIR}"`;
+            break;
+        case 'linux':
+        default:
+            // Linux and other Unix-like systems
+            command = `xdg-open "${PLAYLISTS_DIR}"`;
+            break;
+    }
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            // For Windows, explorer/start commands often return non-zero exit codes even on success
+            if (platform === 'win32' && error.code === 1) {
+                console.log(`Opened playlists folder: ${PLAYLISTS_DIR}`);
+                return;
+            }
+            console.error(`Error opening playlists folder: ${error.message}`);
+            return;
+        }
+        if (stderr && platform !== 'win32') {
+            // Ignore stderr on Windows as it's often not an actual error
+            console.error(`Error output: ${stderr}`);
+            return;
+        }
+        console.log(`Opened playlists folder: ${PLAYLISTS_DIR}`);
+    });
+}
 
 // Socket.io for real-time communication
 io.on('connection', (socket) => {
@@ -125,6 +166,15 @@ io.on('connection', (socket) => {
             io.emit('state-update', state);
         } catch (error) {
             socket.emit('error', error.message);
+        }
+    });
+
+    socket.on('open-playlists', () => {
+        try {
+            openPlaylistsFolder();
+        } catch (error) {
+            console.error('Error opening playlists folder:', error);
+            socket.emit('error', 'Failed to open playlists folder');
         }
     });
 
