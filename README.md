@@ -1,6 +1,6 @@
-# OBS Playlist Player
+# OBSonic
 
-A simple MP3 playlist player with remote control functionality, perfect for OBS streaming or any scenario where you need separate player and control interfaces.
+A highly customisable music player for your streaming setup with remote control functionality, perfect for OBS streaming or any scenario where you need separate player and control interfaces.
 
 ## Features
 
@@ -9,7 +9,6 @@ A simple MP3 playlist player with remote control functionality, perfect for OBS 
 - **Real-time Control**: Remote controls affect the player instantly
 - **Multiple Playlists**: Easy playlist switching from the remote
 - **Clean Display**: Simple, distraction-free music player interface
-- **Responsive Design**: Works on desktop and mobile devices
 
 ## Quick Start
 
@@ -23,14 +22,16 @@ A simple MP3 playlist player with remote control functionality, perfect for OBS 
    - Add .mp3 files to each playlist folder
    - Example: `playlists/Synthwave/song1.mp3`
 
-3. **Start the Server**
+3. **Start the App**
    ```bash
    npm start
    ```
 
-4. **Open the Interfaces**
-   - Music Player: `http://localhost:3000/player`
-   - Remote Control: `http://localhost:3000/remote`
+4. **Setup your Streaming**
+   - Click on "Copy link" to get the player URL
+   - In OBS, add a Browser Source and use the copied URL
+   - Not mandatory, but good to have : select "Control audio via OBS / Streamlabs" to have better control over volume
+   - When pressing play, the music will play in the streaming software
 
 ## How It Works
 
@@ -39,6 +40,7 @@ A simple MP3 playlist player with remote control functionality, perfect for OBS 
 - Plays music automatically
 - Clean, minimal interface perfect for OBS overlays
 - Auto-advances to next random song when current song ends
+- Made of simple html/css/js to allow easy customization
 
 ### Remote Control (`/remote`)
 - Control playlist selection
@@ -80,7 +82,7 @@ obs-playlist-player/
 - **Playlist Switching**: Dropdown to select and switch playlists instantly
 - **Playback Controls**:
   - ⏮️ Previous song
-  - ⏪ Restart current song
+  - 🔁 Restart current song
   - ▶️/⏸️ Play/Pause
   - ⏭️ Next song
 - **Status Display**: Shows current song and playback state
@@ -89,7 +91,7 @@ obs-playlist-player/
 ## Technical Details
 
 - **Backend**: Node.js with Express and Socket.io
-- **Frontend**: Vanilla HTML, CSS, and JavaScript
+- **Frontend**: Vanilla HTML, CSS, and JavaScript (framework agnostic to foster user adoption)
 - **Real-time Communication**: WebSocket-based for instant updates
 - **Audio Metadata**: Automatic extraction from MP3 ID3 tags
 - **Supported Formats**: MP3 files only
