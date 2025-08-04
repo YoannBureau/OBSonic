@@ -1,8 +1,13 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
-import { spawn } from 'child_process';
 import StateManager from './utils/stateManager.js';
 import { fileURLToPath } from 'url';
+import express from 'express';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import fs from 'fs';
+import { exec } from 'child_process';
+import MusicManager from './utils/musicManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,7 +22,8 @@ async function initializeStore() {
 
 // Keep a global reference of the window object
 let mainWindow;
-let serverProcess;
+let webServer;
+let musicManager;
 let store;
 
 function createWindow() {
@@ -120,49 +126,242 @@ async function startApp() {
     const lastPlaylist = getLastPlaylist();
     console.log(`Last playlist from store: ${lastPlaylist}`);
     
-    // Start the Node.js server with environment variable for last playlist
-    const env = { ...process.env };
+    // Set the last playlist environment variable if available
     if (lastPlaylist) {
-        env.LAST_PLAYLIST = lastPlaylist;
+        process.env.LAST_PLAYLIST = lastPlaylist;
     }
     
-    serverProcess = spawn('node', ['server.js'], {
-        cwd: __dirname,
-        stdio: 'inherit',
-        env: env
-    });
-
-    // Wait for server to be ready
-    await waitForServer('http://localhost:3000', 30000);
+    // Start the Express server directly in this process
+    await startWebServer();
     
     console.log('Server ready, opening Electron window...');
     createWindow();
     createMenu();
 }
 
-// Wait for server to respond
-function waitForServer(url, timeout = 30000) {
-    return new Promise((resolve, reject) => {
-        const startTime = Date.now();
+// Start the web server directly (integrated from server.js)
+async function startWebServer() {
+    const expressApp = express();
+    const server = http.createServer(expressApp);
+    const io = new SocketIOServer(server);
+    
+    const PORT = process.env.PORT || 3000;
+    // PLAYLISTS_DIR will be set below with proper path resolution
+    
+    // Track connected players
+    let connectedPlayers = new Set();
+    
+    // Serve static files with absolute paths - handle both dev and packaged app
+    let publicDir, playlistsDir;
+    
+    if (app.isPackaged) {
+        // In packaged app, resources are in different location
+        const resourcesPath = process.resourcesPath;
+        publicDir = path.join(resourcesPath, 'app', 'public');
+        playlistsDir = path.join(resourcesPath, 'app', 'playlists');
         
-        async function checkServer() {
-            const http = await import('http');
-            const request = http.default.get(url, (res) => {
-                resolve();
-            });
-            
-            request.on('error', () => {
-                if (Date.now() - startTime > timeout) {
-                    reject(new Error('Server startup timeout'));
-                } else {
-                    setTimeout(checkServer, 500);
-                }
-            });
+        // Fallback if the above doesn't work
+        if (!fs.existsSync(publicDir)) {
+            publicDir = path.join(__dirname, 'public');
+            playlistsDir = path.join(__dirname, 'playlists');
+        }
+    } else {
+        // In development
+        publicDir = path.join(__dirname, 'public');
+        playlistsDir = path.join(__dirname, 'playlists');
+    }
+    
+    console.log('App packaged:', app.isPackaged);
+    console.log('__dirname:', __dirname);
+    console.log('Public directory path:', publicDir);
+    console.log('Public directory exists:', fs.existsSync(publicDir));
+    console.log('Playlists directory path:', playlistsDir);
+    console.log('Playlists directory exists:', fs.existsSync(playlistsDir));
+    
+    // Log contents of public directory if it exists
+    if (fs.existsSync(publicDir)) {
+        const publicContents = fs.readdirSync(publicDir);
+        console.log('Public directory contents:', publicContents);
+    }
+    
+    expressApp.use(express.static(publicDir));
+    expressApp.use('/playlists', express.static(playlistsDir));
+    
+    // Routes with absolute paths
+    expressApp.get('/', (req, res) => {
+        res.sendFile(path.join(publicDir, 'player.html'));
+    });
+    
+    expressApp.get('/player', (req, res) => {
+        res.sendFile(path.join(publicDir, 'player.html'));
+    });
+    
+    expressApp.get('/remote', (req, res) => {
+        res.sendFile(path.join(publicDir, 'remote.html'));
+    });
+    
+    // API endpoints
+    expressApp.get('/api/playlists', async (req, res) => {
+        try {
+            const playlists = await musicManager.getPlaylists();
+            res.json(playlists);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+    
+    expressApp.get('/api/current-state', async (req, res) => {
+        try {
+            const state = await musicManager.getCurrentState();
+            res.json(state);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+    
+    // Cross-platform function to open playlists folder
+    function openPlaylistsFolder() {
+        const platform = process.platform;
+        let command;
+        
+        switch (platform) {
+            case 'win32':
+                command = `start "" "${playlistsDir}"`;
+                break;
+            case 'darwin':
+                command = `open "${playlistsDir}"`;
+                break;
+            case 'linux':
+            default:
+                command = `xdg-open "${playlistsDir}"`;
+                break;
         }
         
-        checkServer();
+        exec(command, (error, stdout, stderr) => {
+            if (error) {
+                if (platform === 'win32' && error.code === 1) {
+                    console.log(`Opened playlists folder: ${playlistsDir}`);
+                    return;
+                }
+                console.error(`Error opening playlists folder: ${error.message}`);
+                return;
+            }
+            if (stderr && platform !== 'win32') {
+                console.error(`Error output: ${stderr}`);
+                return;
+            }
+            console.log(`Opened playlists folder: ${playlistsDir}`);
+        });
+    }
+    
+    // Socket.io for real-time communication
+    io.on('connection', (socket) => {
+        console.log('Client connected:', socket.id);
+        
+        // Send current state to newly connected client
+        musicManager.getCurrentState().then(state => {
+            socket.emit('state-update', state);
+            socket.emit('player-status', { playersConnected: connectedPlayers.size > 0 });
+        });
+        
+        // Handle player identification
+        socket.on('identify-as-player', () => {
+            console.log('Player identified:', socket.id);
+            connectedPlayers.add(socket.id);
+            io.emit('player-status', { playersConnected: connectedPlayers.size > 0 });
+        });
+        
+        // Handle remote control commands
+        socket.on('switch-playlist', async (playlistName) => {
+            try {
+                await musicManager.switchPlaylist(playlistName);
+                const state = await musicManager.getCurrentState();
+                io.emit('state-update', state);
+            } catch (error) {
+                socket.emit('error', error.message);
+            }
+        });
+        
+        socket.on('next-song', async () => {
+            try {
+                await musicManager.nextSong();
+                const state = await musicManager.getCurrentState();
+                io.emit('state-update', state);
+            } catch (error) {
+                socket.emit('error', error.message);
+            }
+        });
+        
+        socket.on('previous-song', async () => {
+            try {
+                await musicManager.previousSong();
+                const state = await musicManager.getCurrentState();
+                io.emit('state-update', state);
+            } catch (error) {
+                socket.emit('error', error.message);
+            }
+        });
+        
+        socket.on('restart-song', async () => {
+            try {
+                await musicManager.restartCurrentSong();
+                const state = await musicManager.getCurrentState();
+                io.emit('state-update', state);
+            } catch (error) {
+                socket.emit('error', error.message);
+            }
+        });
+        
+        socket.on('toggle-play-pause', async () => {
+            try {
+                await musicManager.togglePlayPause();
+                const state = await musicManager.getCurrentState();
+                io.emit('state-update', state);
+            } catch (error) {
+                socket.emit('error', error.message);
+            }
+        });
+        
+        socket.on('open-playlists', () => {
+            try {
+                openPlaylistsFolder();
+            } catch (error) {
+                console.error('Error opening playlists folder:', error);
+                socket.emit('error', 'Failed to open playlists folder');
+            }
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Client disconnected:', socket.id);
+            if (connectedPlayers.has(socket.id)) {
+                connectedPlayers.delete(socket.id);
+                console.log('Player disconnected:', socket.id);
+                io.emit('player-status', { playersConnected: connectedPlayers.size > 0 });
+            }
+        });
+    });
+    
+    // Initialize music manager with socket.io instance
+    musicManager = new MusicManager(playlistsDir, io);
+    await musicManager.initialize();
+    console.log('Music manager initialized');
+    
+    // Start the server
+    return new Promise((resolve, reject) => {
+        webServer = server.listen(PORT, (error) => {
+            if (error) {
+                reject(error);
+            } else {
+                console.log(`Server running on http://localhost:${PORT}`);
+                console.log(`Player: http://localhost:${PORT}/player`);
+                console.log(`Remote: http://localhost:${PORT}/remote`);
+                resolve();
+            }
+        });
     });
 }
+
+
 
 // App event handlers
 app.whenReady().then(() => {
@@ -178,9 +377,14 @@ app.whenReady().then(() => {
 
 // Quit when all windows are closed
 app.on('window-all-closed', () => {
-    // Kill the server process
-    if (serverProcess) {
-        serverProcess.kill();
+    // Close the web server
+    if (webServer) {
+        webServer.close();
+    }
+    
+    // Cleanup music manager
+    if (musicManager) {
+        musicManager.cleanup();
     }
     
     // On macOS, applications stay active until explicitly quit
@@ -191,8 +395,11 @@ app.on('window-all-closed', () => {
 
 // Handle app quit
 app.on('before-quit', () => {
-    if (serverProcess) {
-        serverProcess.kill();
+    if (webServer) {
+        webServer.close();
+    }
+    if (musicManager) {
+        musicManager.cleanup();
     }
 });
 
