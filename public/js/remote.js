@@ -82,6 +82,14 @@ class RemoteControl {
         this.copyLinkBtn.addEventListener('click', () => {
             this.copyPlayerLink();
         });
+
+        // Open playlists button
+        const openPlaylistsBtn = document.getElementById('open-playlists-btn');
+        if (openPlaylistsBtn) {
+            openPlaylistsBtn.addEventListener('click', () => {
+                this.socket.emit('open-playlists');
+            });
+        }
     }
 
     updateConnectionStatus() {
