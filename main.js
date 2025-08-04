@@ -30,7 +30,7 @@ function createWindow() {
             contextIsolation: true
         },
         title: 'Music Remote Control',
-        icon: path.join(__dirname, 'assets', 'icon.png'), // Optional: add an icon
+        icon: path.join(__dirname, 'public', 'assets', 'icon.png'),
         resizable: true,
         minimizable: true,
         maximizable: false,
