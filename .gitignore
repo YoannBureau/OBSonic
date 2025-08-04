@@ -39,6 +39,10 @@ Thumbs.db
 *.swp
 *.swo
 
+# Playlists folders - ignore all except "Playlist 1"
+playlists/*/
+!playlists/Playlist 1/
+
 # Music files (keep structure but ignore actual MP3s if desired)
 # Uncomment the next line if you don't want to commit MP3 files
 playlists/**/*.mp3
