@@ -10,7 +10,11 @@
     "server": "node server.js",
     "build-win": "electron-builder --win",
     "build-win-portable": "electron-builder --win portable",
-    "dist": "electron-builder"
+    "build-mac": "electron-builder --mac",
+    "build-mac-dmg": "electron-builder --mac dmg",
+    "build-mac-zip": "electron-builder --mac zip",
+    "dist": "electron-builder",
+    "dist-all": "electron-builder --win --mac"
   },
   "keywords": [
     "music",
@@ -74,6 +78,42 @@
         }
       ],
       "icon": "public/assets/icon.png"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "public/assets/icon.png",
+      "category": "public.app-category.music",
+      "minimumSystemVersion": "10.15.0"
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "background": null,
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
     },
     "nsis": {
       "oneClick": false,
