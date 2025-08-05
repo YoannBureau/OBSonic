@@ -18,7 +18,7 @@ const CONFIG = {
     PORT: process.env.PORT || 3000,
     WINDOW: {
         width: 450,
-        height: 700,
+        height: 660,
         resizable: false,
         minimizable: true,
         maximizable: false
