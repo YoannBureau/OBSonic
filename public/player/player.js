@@ -12,6 +12,7 @@ class MusicPlayer {
         this.currentSong = null;
         this.isLoading = false;
         this.fadeTimeout = null;
+        this.isConnected = false;
 
         this.initializeSocketListeners();
         this.initializeAudioEvents();
@@ -20,8 +21,11 @@ class MusicPlayer {
     initializeSocketListeners() {
         this.socket.on('connect', () => {
             console.log('Connected to server');
+            this.isConnected = true;
             // Identify this client as a player
             this.socket.emit('identify-as-player');
+            // Restore normal fade behavior when reconnected
+            this.restoreFadeBehavior();
         });
 
         this.socket.on('state-update', (state) => {
@@ -35,7 +39,10 @@ class MusicPlayer {
 
         this.socket.on('disconnect', () => {
             console.log('Disconnected from server');
+            this.isConnected = false;
             this.showError('Connection lost. Trying to reconnect...');
+            // Make player always visible when disconnected
+            this.disableFadeBehavior();
         });
     }
 
@@ -180,8 +187,13 @@ class MusicPlayer {
     }
 
     showPlayerWithFadeAway() {
-        // Only apply fade-away behavior if the player has the fade-away class
-        if (!this.playerContainer.classList.contains('fade-away')) {
+        // Only apply fade-away behavior if connected and player has the fade-away class
+        if (!this.isConnected || !this.playerContainer.classList.contains('fade-away')) {
+            // If disconnected, just make sure player is visible
+            if (!this.isConnected) {
+                this.playerContainer.classList.remove('fade-out');
+                this.playerContainer.classList.add('fade-in');
+            }
             return;
         }
 
@@ -194,11 +206,37 @@ class MusicPlayer {
         this.playerContainer.classList.remove('fade-out');
         this.playerContainer.classList.add('fade-in');
         
-        // Set timeout to fade out after 10 seconds
+        // Set timeout to fade out after 10 seconds (only when connected)
         this.fadeTimeout = setTimeout(() => {
-            this.playerContainer.classList.remove('fade-in');
-            this.playerContainer.classList.add('fade-out');
+            // Double-check we're still connected before fading out
+            if (this.isConnected) {
+                this.playerContainer.classList.remove('fade-in');
+                this.playerContainer.classList.add('fade-out');
+            }
         }, 10000); // 10 seconds
+    }
+
+    disableFadeBehavior() {
+        // Clear any pending fade timeout
+        if (this.fadeTimeout) {
+            clearTimeout(this.fadeTimeout);
+            this.fadeTimeout = null;
+        }
+        
+        // Make player visible and remove fade-away class temporarily
+        this.playerContainer.classList.remove('fade-out');
+        this.playerContainer.classList.add('fade-in');
+        
+        console.log('Fade behavior disabled - player will stay visible');
+    }
+
+    restoreFadeBehavior() {
+        console.log('Fade behavior restored - normal fade in/out behavior activated');
+        
+        // If there's current song playing, trigger the normal fade behavior
+        if (this.currentSong && !this.audioPlayer.paused) {
+            this.showPlayerWithFadeAway();
+        }
     }
 }
 
