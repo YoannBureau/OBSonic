@@ -41,6 +41,8 @@ class MusicPlayer {
             console.log('Disconnected from server');
             this.isConnected = false;
             this.showError('Connection lost. Trying to reconnect...');
+            // Stop music playback when connection is lost
+            this.stopMusicOnDisconnect();
             // Make player always visible when disconnected
             this.disableFadeBehavior();
         });
@@ -236,6 +238,15 @@ class MusicPlayer {
         // If there's current song playing, trigger the normal fade behavior
         if (this.currentSong && !this.audioPlayer.paused) {
             this.showPlayerWithFadeAway();
+        }
+    }
+
+    stopMusicOnDisconnect() {
+        if (!this.audioPlayer.paused) {
+            console.log('Stopping music playback due to connection loss');
+            this.audioPlayer.pause();
+            // Reset to beginning of the song so it starts fresh when reconnected
+            this.audioPlayer.currentTime = 0;
         }
     }
 }
