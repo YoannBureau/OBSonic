@@ -7,9 +7,11 @@ class MusicPlayer {
         this.currentPlaylist = document.getElementById('current-playlist');
         this.albumCover = document.getElementById('album-cover');
         this.noCover = document.getElementById('no-cover');
+        this.playerContainer = document.querySelector('.player-container');
         
         this.currentSong = null;
         this.isLoading = false;
+        this.fadeTimeout = null;
 
         this.initializeSocketListeners();
         this.initializeAudioEvents();
@@ -126,6 +128,8 @@ class MusicPlayer {
                         console.error('Failed to play audio:', error);
                         this.showError('Failed to play audio');
                     });
+                    // Show player with fade-away when a new song starts playing
+                    this.showPlayerWithFadeAway();
                 }, { once: true });
             }
         } else {
@@ -137,6 +141,8 @@ class MusicPlayer {
                         console.error('Failed to resume audio:', error);
                         this.showError('Failed to resume audio');
                     });
+                    // Show player with fade-away when playback is resumed
+                    this.showPlayerWithFadeAway();
                 }
             } else if (isPaused) {
                 if (!this.audioPlayer.paused) {
@@ -152,6 +158,28 @@ class MusicPlayer {
         this.songArtist.textContent = message;
         this.albumCover.style.display = 'none';
         this.noCover.style.display = 'flex';
+    }
+
+    showPlayerWithFadeAway() {
+        // Only apply fade-away behavior if the player has the fade-away class
+        if (!this.playerContainer.classList.contains('fade-away')) {
+            return;
+        }
+
+        // Clear any existing timeout
+        if (this.fadeTimeout) {
+            clearTimeout(this.fadeTimeout);
+        }
+
+        // Remove fade-out class and add fade-in class
+        this.playerContainer.classList.remove('fade-out');
+        this.playerContainer.classList.add('fade-in');
+        
+        // Set timeout to fade out after 10 seconds
+        this.fadeTimeout = setTimeout(() => {
+            this.playerContainer.classList.remove('fade-in');
+            this.playerContainer.classList.add('fade-out');
+        }, 10000); // 10 seconds
     }
 }
 
