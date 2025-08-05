@@ -242,6 +242,18 @@ class MusicManager {
         }
     }
 
+    async stop() {
+        console.log('Stopping music playback');
+        this.isPlaying = false;
+        this.isPaused = false;
+        
+        // Emit state update to all connected clients if socket.io is available
+        if (this.socketIo) {
+            const state = await this.getCurrentState();
+            this.socketIo.emit('state-update', state);
+        }
+    }
+
     async getPlaylists() {
         return Array.from(this.playlists.keys()).sort();
     }

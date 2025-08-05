@@ -25,6 +25,7 @@ let mainWindow;
 let webServer;
 let musicManager;
 let store;
+let socketServer;
 
 function createWindow() {
     // Create the browser window for the remote control
@@ -35,9 +36,9 @@ function createWindow() {
             nodeIntegration: false,
             contextIsolation: true
         },
-        title: 'Music Remote Control',
+        title: 'OBSonic',
         icon: path.join(__dirname, 'public', 'assets', 'icon.png'),
-        resizable: true,
+        resizable: false,
         minimizable: true,
         maximizable: false,
         show: false // Don't show until ready
@@ -54,6 +55,12 @@ function createWindow() {
 
     // Handle window closed
     mainWindow.on('closed', () => {
+        // Stop music when window is closed
+        if (musicManager) {
+            musicManager.stop().catch(error => {
+                console.error('Error stopping music:', error);
+            });
+        }
         mainWindow = null;
     });
 
@@ -341,6 +348,9 @@ async function startWebServer() {
         });
     });
     
+    // Store socket.io instance globally
+    socketServer = io;
+    
     // Initialize music manager with socket.io instance
     musicManager = new MusicManager(playlistsDir, io);
     await musicManager.initialize();
@@ -377,6 +387,13 @@ app.whenReady().then(() => {
 
 // Quit when all windows are closed
 app.on('window-all-closed', () => {
+    // Stop music before closing
+    if (musicManager) {
+        musicManager.stop().catch(error => {
+            console.error('Error stopping music:', error);
+        });
+    }
+    
     // Close the web server
     if (webServer) {
         webServer.close();
@@ -395,6 +412,12 @@ app.on('window-all-closed', () => {
 
 // Handle app quit
 app.on('before-quit', () => {
+    // Stop music before quitting
+    if (musicManager) {
+        musicManager.stop().catch(error => {
+            console.error('Error stopping music:', error);
+        });
+    }
     if (webServer) {
         webServer.close();
     }
