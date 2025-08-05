@@ -85,3 +85,23 @@ body {
 #audio-player {
     display: none;
 }
+
+/* Fade-away functionality */
+.player-container.fade-away {
+    display: flex;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 1s ease-in-out, visibility 0s linear 1s;
+}
+
+.player-container.fade-away.fade-in {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 1s ease-in-out, visibility 0s linear 0s;
+}
+
+.player-container.fade-away.fade-out {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 1s ease-in-out, visibility 0s linear 1s;
+}
