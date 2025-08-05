@@ -58,6 +58,8 @@ function createWindow() {
         show: false
     });
 
+    Menu.setApplicationMenu(null); // Remove default menu
+
     const remoteUrl = `http://localhost:${CONFIG.PORT}/remote`;
     appState.mainWindow.loadURL(remoteUrl);
 
@@ -94,65 +96,34 @@ async function stopMusic() {
     }
 }
 
-function createMenu() {
-    const template = [
-        {
-            label: 'Music Player',
-            submenu: [
-                {
-                    label: 'Open Player in Browser',
-                    click: async () => {
-                        const { shell } = await import('electron');
-                        shell.openExternal(`http://localhost:${CONFIG.PORT}/player`);
-                    }
-                },
-                {
-                    label: 'Reload Remote',
-                    accelerator: 'CmdOrCtrl+R',
-                    click: () => appState.mainWindow?.reload()
-                },
-                { type: 'separator' },
-                {
-                    label: 'Quit',
-                    accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
-                    click: () => app.quit()
-                }
-            ]
-        }
-    ];
-
-    Menu.setApplicationMenu(null); // Remove default menu
-}
-
 async function startApp() {
     console.log('Starting server...');
-    
+
     appState.store = await initializeStore();
     if (appState.store) {
         console.log('Electron store initialized');
     }
-    
+
     const lastPlaylist = getLastPlaylist();
     if (lastPlaylist) {
         console.log(`Last playlist from store: ${lastPlaylist}`);
         process.env.LAST_PLAYLIST = lastPlaylist;
     }
-    
+
     await startWebServer();
-    
+
     console.log('Server ready, opening Electron window...');
     createWindow();
-    createMenu();
 }
 
 function resolvePaths() {
     let publicDir, playlistsDir;
-    
+
     if (app.isPackaged) {
         const resourcesPath = process.resourcesPath;
         publicDir = path.join(resourcesPath, 'app', 'public');
         playlistsDir = path.join(resourcesPath, 'app', 'playlists');
-        
+
         if (!fs.existsSync(publicDir)) {
             publicDir = path.join(__dirname, 'public');
             playlistsDir = path.join(__dirname, 'playlists');
@@ -161,7 +132,7 @@ function resolvePaths() {
         publicDir = path.join(__dirname, 'public');
         playlistsDir = path.join(__dirname, 'playlists');
     }
-    
+
     logPathInfo(publicDir, playlistsDir);
     return { publicDir, playlistsDir };
 }
@@ -173,7 +144,7 @@ function logPathInfo(publicDir, playlistsDir) {
     console.log('Public directory exists:', fs.existsSync(publicDir));
     console.log('Playlists directory path:', playlistsDir);
     console.log('Playlists directory exists:', fs.existsSync(playlistsDir));
-    
+
     if (fs.existsSync(publicDir)) {
         const publicContents = fs.readdirSync(publicDir);
         console.log('Public directory contents:', publicContents);
@@ -191,7 +162,7 @@ function setupRoutes(expressApp, publicDir) {
         { path: '/player', file: 'player/player.html' },
         { path: '/remote', file: 'remote/remote.html' }
     ];
-    
+
     routes.forEach(({ path: routePath, file }) => {
         expressApp.get(routePath, (req, res) => {
             res.sendFile(path.join(publicDir, file));
@@ -208,7 +179,7 @@ function setupApiRoutes(expressApp) {
             res.status(500).json({ error: error.message });
         }
     });
-    
+
     expressApp.get('/api/current-state', async (req, res) => {
         try {
             const state = await appState.musicManager.getCurrentState();
@@ -223,19 +194,19 @@ async function startWebServer() {
     const expressApp = express();
     const server = http.createServer(expressApp);
     const io = new SocketIOServer(server);
-    
+
     const { publicDir, playlistsDir } = resolvePaths();
-    
+
     setupExpressApp(expressApp, publicDir, playlistsDir);
     setupRoutes(expressApp, publicDir);
     setupApiRoutes(expressApp);
     setupSocketIO(io, playlistsDir);
-    
+
     appState.socketServer = io;
     appState.musicManager = new MusicManager(playlistsDir, io);
     await appState.musicManager.initialize();
     console.log('Music manager initialized');
-    
+
     return startServer(server);
 }
 
@@ -245,9 +216,9 @@ function openPlaylistsFolder(playlistsDir) {
         darwin: `open "${playlistsDir}"`,
         linux: `xdg-open "${playlistsDir}"`
     };
-    
+
     const command = commands[process.platform] || commands.linux;
-    
+
     exec(command, (error, stdout, stderr) => {
         if (error) {
             if (process.platform === 'win32' && error.code === 1) {
@@ -278,41 +249,41 @@ async function handleMusicManagerAction(action, socket, io, ...args) {
 function setupSocketIO(io, playlistsDir) {
     io.on('connection', (socket) => {
         console.log('Client connected:', socket.id);
-        
+
         // Send current state to newly connected client
         appState.musicManager.getCurrentState().then(state => {
             socket.emit('state-update', state);
             socket.emit('player-status', { playersConnected: appState.connectedPlayers.size > 0 });
         });
-        
+
         // Handle player identification
         socket.on('identify-as-player', () => {
             console.log('Player identified:', socket.id);
             appState.connectedPlayers.add(socket.id);
             io.emit('player-status', { playersConnected: appState.connectedPlayers.size > 0 });
         });
-        
+
         // Handle music control actions
         socket.on('switch-playlist', async (playlistName) => {
             await handleMusicManagerAction('switchPlaylist', socket, io, playlistName);
         });
-        
+
         socket.on('next-song', async () => {
             await handleMusicManagerAction('nextSong', socket, io);
         });
-        
+
         socket.on('previous-song', async () => {
             await handleMusicManagerAction('previousSong', socket, io);
         });
-        
+
         socket.on('restart-song', async () => {
             await handleMusicManagerAction('restartCurrentSong', socket, io);
         });
-        
+
         socket.on('toggle-play-pause', async () => {
             await handleMusicManagerAction('togglePlayPause', socket, io);
         });
-        
+
         socket.on('open-playlists', () => {
             try {
                 openPlaylistsFolder(playlistsDir);
@@ -321,7 +292,7 @@ function setupSocketIO(io, playlistsDir) {
                 socket.emit('error', 'Failed to open playlists folder');
             }
         });
-        
+
         socket.on('disconnect', () => {
             console.log('Client disconnected:', socket.id);
             if (appState.connectedPlayers.has(socket.id)) {
@@ -348,40 +319,49 @@ function startServer(server) {
     });
 }
 
-
-
 async function cleanupApp() {
     await stopMusic();
-    
+
     if (appState.webServer) {
         appState.webServer.close();
     }
-    
+
     if (appState.musicManager) {
         appState.musicManager.cleanup();
     }
 }
 
-// App event handlers
-app.whenReady().then(() => {
-    startApp();
+function createAppEventHandlers() {
+    // App event handlers
+    app.whenReady().then(() => {
+        startApp();
 
-    app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) {
-            createWindow();
+        app.on('activate', () => {
+            if (BrowserWindow.getAllWindows().length === 0) {
+                createWindow();
+            }
+        });
+    });
+
+    app.on('window-all-closed', async () => {
+        await cleanupApp();
+
+        if (process.platform !== 'darwin') {
+            app.quit();
         }
     });
-});
 
-app.on('window-all-closed', async () => {
-    await cleanupApp();
-    
-    if (process.platform !== 'darwin') {
-        app.quit();
-    }
-});
+    app.on('before-quit', cleanupApp);
 
-app.on('before-quit', cleanupApp);
+    // Security: Prevent new window creation
+    app.on('web-contents-created', (event, contents) => {
+        contents.on('new-window', async (event, navigationUrl) => {
+            event.preventDefault();
+            const { shell } = await import('electron');
+            shell.openExternal(navigationUrl);
+        });
+    });
+}
 
 function savePlaylistState(playlistName) {
     if (appState.store) {
@@ -397,13 +377,6 @@ function getLastPlaylist() {
     return fromStore || fromState;
 }
 
-// Security: Prevent new window creation
-app.on('web-contents-created', (event, contents) => {
-    contents.on('new-window', async (event, navigationUrl) => {
-        event.preventDefault();
-        const { shell } = await import('electron');
-        shell.openExternal(navigationUrl);
-    });
-});
+createAppEventHandlers();
 
 console.log('Electron app starting...');
