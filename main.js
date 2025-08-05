@@ -12,74 +12,88 @@ import MusicManager from './utils/musicManager.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Import electron-store dynamically to handle ES module requirement
-let Store;
-async function initializeStore() {
-    const electronStore = await import('electron-store');
-    Store = electronStore.default;
-    return new Store();
-}
-
-// Keep a global reference of the window object
-let mainWindow;
-let webServer;
-let musicManager;
-let store;
-let socketServer;
-
-function createWindow() {
-    // Create the browser window for the remote control
-    mainWindow = new BrowserWindow({
+// Configuration constants
+const CONFIG = {
+    PORT: process.env.PORT || 3000,
+    WINDOW: {
         width: 450,
         height: 700,
+        resizable: false,
+        minimizable: true,
+        maximizable: false
+    },
+    RETRY_DELAY: 2000
+};
+
+// Application state
+const appState = {
+    mainWindow: null,
+    webServer: null,
+    musicManager: null,
+    store: null,
+    socketServer: null,
+    connectedPlayers: new Set()
+};
+
+// Initialize electron-store dynamically
+async function initializeStore() {
+    try {
+        const electronStore = await import('electron-store');
+        return new electronStore.default();
+    } catch (error) {
+        console.warn('Failed to initialize electron-store:', error.message);
+        return null;
+    }
+}
+
+function createWindow() {
+    appState.mainWindow = new BrowserWindow({
+        ...CONFIG.WINDOW,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true
         },
         title: 'OBSonic',
         icon: path.join(__dirname, 'public', 'assets', 'icon.png'),
-        resizable: false,
-        minimizable: true,
-        maximizable: false,
-        show: false // Don't show until ready
+        show: false
     });
 
-    // Load the remote control page
-    mainWindow.loadURL('http://localhost:3000/remote');
+    const remoteUrl = `http://localhost:${CONFIG.PORT}/remote`;
+    appState.mainWindow.loadURL(remoteUrl);
 
-    // Show window when ready to prevent visual flash
-    mainWindow.once('ready-to-show', () => {
-        mainWindow.show();
+    setupWindowEvents();
+}
+
+function setupWindowEvents() {
+    appState.mainWindow.once('ready-to-show', () => {
+        appState.mainWindow.show();
         console.log('Remote control window opened');
     });
 
-    // Handle window closed
-    mainWindow.on('closed', () => {
-        // Stop music when window is closed
-        if (musicManager) {
-            musicManager.stop().catch(error => {
-                console.error('Error stopping music:', error);
-            });
-        }
-        mainWindow = null;
+    appState.mainWindow.on('closed', async () => {
+        await stopMusic();
+        appState.mainWindow = null;
     });
 
-    // Optional: Open DevTools in development
-    if (process.env.NODE_ENV === 'development') {
-        // mainWindow.webContents.openDevTools();
-    }
-
-    // Handle connection errors
-    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    appState.mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
         console.error('Failed to load remote control page:', errorDescription);
-        // Retry after a short delay
         setTimeout(() => {
-            mainWindow.loadURL('http://localhost:3000/remote');
-        }, 2000);
+            const remoteUrl = `http://localhost:${CONFIG.PORT}/remote`;
+            appState.mainWindow.loadURL(remoteUrl);
+        }, CONFIG.RETRY_DELAY);
     });
 }
 
-// Create minimal menu (removes default Electron menu)
+async function stopMusic() {
+    if (appState.musicManager) {
+        try {
+            await appState.musicManager.stop();
+        } catch (error) {
+            console.error('Error stopping music:', error);
+        }
+    }
+}
+
 function createMenu() {
     const template = [
         {
@@ -89,56 +103,41 @@ function createMenu() {
                     label: 'Open Player in Browser',
                     click: async () => {
                         const { shell } = await import('electron');
-                        shell.openExternal('http://localhost:3000/player');
+                        shell.openExternal(`http://localhost:${CONFIG.PORT}/player`);
                     }
                 },
                 {
                     label: 'Reload Remote',
                     accelerator: 'CmdOrCtrl+R',
-                    click: () => {
-                        if (mainWindow) {
-                            mainWindow.reload();
-                        }
-                    }
+                    click: () => appState.mainWindow?.reload()
                 },
                 { type: 'separator' },
                 {
                     label: 'Quit',
                     accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Ctrl+Q',
-                    click: () => {
-                        app.quit();
-                    }
+                    click: () => app.quit()
                 }
             ]
         }
     ];
 
-    const menu = null; //Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menu);
+    Menu.setApplicationMenu(null); // Remove default menu
 }
 
-// Start the server and then create window
 async function startApp() {
     console.log('Starting server...');
     
-    // Initialize electron-store
-    try {
-        store = await initializeStore();
+    appState.store = await initializeStore();
+    if (appState.store) {
         console.log('Electron store initialized');
-    } catch (error) {
-        console.warn('Failed to initialize electron-store, using fallback:', error.message);
     }
     
-    // Get the last playlist from store
     const lastPlaylist = getLastPlaylist();
-    console.log(`Last playlist from store: ${lastPlaylist}`);
-    
-    // Set the last playlist environment variable if available
     if (lastPlaylist) {
+        console.log(`Last playlist from store: ${lastPlaylist}`);
         process.env.LAST_PLAYLIST = lastPlaylist;
     }
     
-    // Start the Express server directly in this process
     await startWebServer();
     
     console.log('Server ready, opening Electron window...');
@@ -146,38 +145,28 @@ async function startApp() {
     createMenu();
 }
 
-// Start the web server directly (integrated from server.js)
-async function startWebServer() {
-    const expressApp = express();
-    const server = http.createServer(expressApp);
-    const io = new SocketIOServer(server);
-    
-    const PORT = process.env.PORT || 3000;
-    // PLAYLISTS_DIR will be set below with proper path resolution
-    
-    // Track connected players
-    let connectedPlayers = new Set();
-    
-    // Serve static files with absolute paths - handle both dev and packaged app
+function resolvePaths() {
     let publicDir, playlistsDir;
     
     if (app.isPackaged) {
-        // In packaged app, resources are in different location
         const resourcesPath = process.resourcesPath;
         publicDir = path.join(resourcesPath, 'app', 'public');
         playlistsDir = path.join(resourcesPath, 'app', 'playlists');
         
-        // Fallback if the above doesn't work
         if (!fs.existsSync(publicDir)) {
             publicDir = path.join(__dirname, 'public');
             playlistsDir = path.join(__dirname, 'playlists');
         }
     } else {
-        // In development
         publicDir = path.join(__dirname, 'public');
         playlistsDir = path.join(__dirname, 'playlists');
     }
     
+    logPathInfo(publicDir, playlistsDir);
+    return { publicDir, playlistsDir };
+}
+
+function logPathInfo(publicDir, playlistsDir) {
     console.log('App packaged:', app.isPackaged);
     console.log('__dirname:', __dirname);
     console.log('Public directory path:', publicDir);
@@ -185,32 +174,35 @@ async function startWebServer() {
     console.log('Playlists directory path:', playlistsDir);
     console.log('Playlists directory exists:', fs.existsSync(playlistsDir));
     
-    // Log contents of public directory if it exists
     if (fs.existsSync(publicDir)) {
         const publicContents = fs.readdirSync(publicDir);
         console.log('Public directory contents:', publicContents);
     }
-    
+}
+
+function setupExpressApp(expressApp, publicDir, playlistsDir) {
     expressApp.use(express.static(publicDir));
     expressApp.use('/playlists', express.static(playlistsDir));
+}
+
+function setupRoutes(expressApp, publicDir) {
+    const routes = [
+        { path: '/', file: 'player/player.html' },
+        { path: '/player', file: 'player/player.html' },
+        { path: '/remote', file: 'remote/remote.html' }
+    ];
     
-    // Routes with absolute paths
-    expressApp.get('/', (req, res) => {
-        res.sendFile(path.join(publicDir, 'player', 'player.html'));
+    routes.forEach(({ path: routePath, file }) => {
+        expressApp.get(routePath, (req, res) => {
+            res.sendFile(path.join(publicDir, file));
+        });
     });
-    
-    expressApp.get('/player', (req, res) => {
-        res.sendFile(path.join(publicDir, 'player', 'player.html'));
-    });
-    
-    expressApp.get('/remote', (req, res) => {
-        res.sendFile(path.join(publicDir, 'remote', 'remote.html'));
-    });
-    
-    // API endpoints
+}
+
+function setupApiRoutes(expressApp) {
     expressApp.get('/api/playlists', async (req, res) => {
         try {
-            const playlists = await musicManager.getPlaylists();
+            const playlists = await appState.musicManager.getPlaylists();
             res.json(playlists);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -219,119 +211,111 @@ async function startWebServer() {
     
     expressApp.get('/api/current-state', async (req, res) => {
         try {
-            const state = await musicManager.getCurrentState();
+            const state = await appState.musicManager.getCurrentState();
             res.json(state);
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
     });
+}
+
+async function startWebServer() {
+    const expressApp = express();
+    const server = http.createServer(expressApp);
+    const io = new SocketIOServer(server);
     
-    // Cross-platform function to open playlists folder
-    function openPlaylistsFolder() {
-        const platform = process.platform;
-        let command;
-        
-        switch (platform) {
-            case 'win32':
-                command = `start "" "${playlistsDir}"`;
-                break;
-            case 'darwin':
-                command = `open "${playlistsDir}"`;
-                break;
-            case 'linux':
-            default:
-                command = `xdg-open "${playlistsDir}"`;
-                break;
+    const { publicDir, playlistsDir } = resolvePaths();
+    
+    setupExpressApp(expressApp, publicDir, playlistsDir);
+    setupRoutes(expressApp, publicDir);
+    setupApiRoutes(expressApp);
+    setupSocketIO(io, playlistsDir);
+    
+    appState.socketServer = io;
+    appState.musicManager = new MusicManager(playlistsDir, io);
+    await appState.musicManager.initialize();
+    console.log('Music manager initialized');
+    
+    return startServer(server);
+}
+
+function openPlaylistsFolder(playlistsDir) {
+    const commands = {
+        win32: `start "" "${playlistsDir}"`,
+        darwin: `open "${playlistsDir}"`,
+        linux: `xdg-open "${playlistsDir}"`
+    };
+    
+    const command = commands[process.platform] || commands.linux;
+    
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            if (process.platform === 'win32' && error.code === 1) {
+                console.log(`Opened playlists folder: ${playlistsDir}`);
+                return;
+            }
+            console.error(`Error opening playlists folder: ${error.message}`);
+            return;
         }
-        
-        exec(command, (error, stdout, stderr) => {
-            if (error) {
-                if (platform === 'win32' && error.code === 1) {
-                    console.log(`Opened playlists folder: ${playlistsDir}`);
-                    return;
-                }
-                console.error(`Error opening playlists folder: ${error.message}`);
-                return;
-            }
-            if (stderr && platform !== 'win32') {
-                console.error(`Error output: ${stderr}`);
-                return;
-            }
-            console.log(`Opened playlists folder: ${playlistsDir}`);
-        });
+        if (stderr && process.platform !== 'win32') {
+            console.error(`Error output: ${stderr}`);
+            return;
+        }
+        console.log(`Opened playlists folder: ${playlistsDir}`);
+    });
+}
+
+async function handleMusicManagerAction(action, socket, io, ...args) {
+    try {
+        await appState.musicManager[action](...args);
+        const state = await appState.musicManager.getCurrentState();
+        io.emit('state-update', state);
+    } catch (error) {
+        socket.emit('error', error.message);
     }
-    
-    // Socket.io for real-time communication
+}
+
+function setupSocketIO(io, playlistsDir) {
     io.on('connection', (socket) => {
         console.log('Client connected:', socket.id);
         
         // Send current state to newly connected client
-        musicManager.getCurrentState().then(state => {
+        appState.musicManager.getCurrentState().then(state => {
             socket.emit('state-update', state);
-            socket.emit('player-status', { playersConnected: connectedPlayers.size > 0 });
+            socket.emit('player-status', { playersConnected: appState.connectedPlayers.size > 0 });
         });
         
         // Handle player identification
         socket.on('identify-as-player', () => {
             console.log('Player identified:', socket.id);
-            connectedPlayers.add(socket.id);
-            io.emit('player-status', { playersConnected: connectedPlayers.size > 0 });
+            appState.connectedPlayers.add(socket.id);
+            io.emit('player-status', { playersConnected: appState.connectedPlayers.size > 0 });
         });
         
-        // Handle remote control commands
+        // Handle music control actions
         socket.on('switch-playlist', async (playlistName) => {
-            try {
-                await musicManager.switchPlaylist(playlistName);
-                const state = await musicManager.getCurrentState();
-                io.emit('state-update', state);
-            } catch (error) {
-                socket.emit('error', error.message);
-            }
+            await handleMusicManagerAction('switchPlaylist', socket, io, playlistName);
         });
         
         socket.on('next-song', async () => {
-            try {
-                await musicManager.nextSong();
-                const state = await musicManager.getCurrentState();
-                io.emit('state-update', state);
-            } catch (error) {
-                socket.emit('error', error.message);
-            }
+            await handleMusicManagerAction('nextSong', socket, io);
         });
         
         socket.on('previous-song', async () => {
-            try {
-                await musicManager.previousSong();
-                const state = await musicManager.getCurrentState();
-                io.emit('state-update', state);
-            } catch (error) {
-                socket.emit('error', error.message);
-            }
+            await handleMusicManagerAction('previousSong', socket, io);
         });
         
         socket.on('restart-song', async () => {
-            try {
-                await musicManager.restartCurrentSong();
-                const state = await musicManager.getCurrentState();
-                io.emit('state-update', state);
-            } catch (error) {
-                socket.emit('error', error.message);
-            }
+            await handleMusicManagerAction('restartCurrentSong', socket, io);
         });
         
         socket.on('toggle-play-pause', async () => {
-            try {
-                await musicManager.togglePlayPause();
-                const state = await musicManager.getCurrentState();
-                io.emit('state-update', state);
-            } catch (error) {
-                socket.emit('error', error.message);
-            }
+            await handleMusicManagerAction('togglePlayPause', socket, io);
         });
         
         socket.on('open-playlists', () => {
             try {
-                openPlaylistsFolder();
+                openPlaylistsFolder(playlistsDir);
             } catch (error) {
                 console.error('Error opening playlists folder:', error);
                 socket.emit('error', 'Failed to open playlists folder');
@@ -340,31 +324,24 @@ async function startWebServer() {
         
         socket.on('disconnect', () => {
             console.log('Client disconnected:', socket.id);
-            if (connectedPlayers.has(socket.id)) {
-                connectedPlayers.delete(socket.id);
+            if (appState.connectedPlayers.has(socket.id)) {
+                appState.connectedPlayers.delete(socket.id);
                 console.log('Player disconnected:', socket.id);
-                io.emit('player-status', { playersConnected: connectedPlayers.size > 0 });
+                io.emit('player-status', { playersConnected: appState.connectedPlayers.size > 0 });
             }
         });
     });
-    
-    // Store socket.io instance globally
-    socketServer = io;
-    
-    // Initialize music manager with socket.io instance
-    musicManager = new MusicManager(playlistsDir, io);
-    await musicManager.initialize();
-    console.log('Music manager initialized');
-    
-    // Start the server
+}
+
+function startServer(server) {
     return new Promise((resolve, reject) => {
-        webServer = server.listen(PORT, (error) => {
+        appState.webServer = server.listen(CONFIG.PORT, (error) => {
             if (error) {
                 reject(error);
             } else {
-                console.log(`Server running on http://localhost:${PORT}`);
-                console.log(`Player: http://localhost:${PORT}/player`);
-                console.log(`Remote: http://localhost:${PORT}/remote`);
+                console.log(`Server running on http://localhost:${CONFIG.PORT}`);
+                console.log(`Player: http://localhost:${CONFIG.PORT}/player`);
+                console.log(`Remote: http://localhost:${CONFIG.PORT}/remote`);
                 resolve();
             }
         });
@@ -373,75 +350,49 @@ async function startWebServer() {
 
 
 
+async function cleanupApp() {
+    await stopMusic();
+    
+    if (appState.webServer) {
+        appState.webServer.close();
+    }
+    
+    if (appState.musicManager) {
+        appState.musicManager.cleanup();
+    }
+}
+
 // App event handlers
 app.whenReady().then(() => {
     startApp();
 
     app.on('activate', () => {
-        // On macOS, re-create window when dock icon is clicked
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
         }
     });
 });
 
-// Quit when all windows are closed
-app.on('window-all-closed', () => {
-    // Stop music before closing
-    if (musicManager) {
-        musicManager.stop().catch(error => {
-            console.error('Error stopping music:', error);
-        });
-    }
+app.on('window-all-closed', async () => {
+    await cleanupApp();
     
-    // Close the web server
-    if (webServer) {
-        webServer.close();
-    }
-    
-    // Cleanup music manager
-    if (musicManager) {
-        musicManager.cleanup();
-    }
-    
-    // On macOS, applications stay active until explicitly quit
     if (process.platform !== 'darwin') {
         app.quit();
     }
 });
 
-// Handle app quit
-app.on('before-quit', () => {
-    // Stop music before quitting
-    if (musicManager) {
-        musicManager.stop().catch(error => {
-            console.error('Error stopping music:', error);
-        });
-    }
-    if (webServer) {
-        webServer.close();
-    }
-    if (musicManager) {
-        musicManager.cleanup();
-    }
-});
+app.on('before-quit', cleanupApp);
 
-// Helper function to save playlist state
 function savePlaylistState(playlistName) {
-    if (store) {
-        store.set('lastPlaylist', playlistName);
+    if (appState.store) {
+        appState.store.set('lastPlaylist', playlistName);
     }
     StateManager.saveLastPlaylist(playlistName);
     console.log(`Saved last playlist: ${playlistName}`);
 }
 
-// Helper function to get last playlist
 function getLastPlaylist() {
-    // Try electron-store first, then fallback to StateManager
-    let fromStore = null;
-    if (store) {
-        fromStore = store.get('lastPlaylist', null);
-    }
+    const fromStore = appState.store?.get('lastPlaylist', null);
     const fromState = StateManager.getLastPlaylist();
     return fromStore || fromState;
 }
@@ -450,7 +401,6 @@ function getLastPlaylist() {
 app.on('web-contents-created', (event, contents) => {
     contents.on('new-window', async (event, navigationUrl) => {
         event.preventDefault();
-        // Open in default browser instead
         const { shell } = await import('electron');
         shell.openExternal(navigationUrl);
     });
