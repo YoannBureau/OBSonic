@@ -29,15 +29,15 @@ app.use('/playlists', express.static(PLAYLISTS_DIR));
 
 // Routes
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'player.html'));
+    res.sendFile(path.join(__dirname, 'public', 'player', 'player.html'));
 });
 
 app.get('/player', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'player.html'));
+    res.sendFile(path.join(__dirname, 'public', 'player', 'player.html'));
 });
 
 app.get('/remote', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'remote.html'));
+    res.sendFile(path.join(__dirname, 'public', 'remote', 'remote.html'));
 });
 
 // API endpoints
