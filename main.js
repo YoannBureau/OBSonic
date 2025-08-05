@@ -189,15 +189,15 @@ async function startWebServer() {
     
     // Routes with absolute paths
     expressApp.get('/', (req, res) => {
-        res.sendFile(path.join(publicDir, 'player.html'));
+        res.sendFile(path.join(publicDir, 'player', 'player.html'));
     });
     
     expressApp.get('/player', (req, res) => {
-        res.sendFile(path.join(publicDir, 'player.html'));
+        res.sendFile(path.join(publicDir, 'player', 'player.html'));
     });
     
     expressApp.get('/remote', (req, res) => {
-        res.sendFile(path.join(publicDir, 'remote.html'));
+        res.sendFile(path.join(publicDir, 'remote', 'remote.html'));
     });
     
     // API endpoints
