@@ -86,14 +86,36 @@ function setupWindowEvents() {
     });
 }
 
-async function stopMusic() {
-    if (appState.musicManager) {
-        try {
-            await appState.musicManager.stop();
-        } catch (error) {
-            console.error('Error stopping music:', error);
+function createAppEventHandlers() {
+    // App event handlers
+    app.whenReady().then(() => {
+        startApp();
+
+        app.on('activate', () => {
+            if (BrowserWindow.getAllWindows().length === 0) {
+                createWindow();
+            }
+        });
+    });
+
+    app.on('window-all-closed', async () => {
+        await cleanupApp();
+
+        if (process.platform !== 'darwin') {
+            app.quit();
         }
-    }
+    });
+
+    app.on('before-quit', cleanupApp);
+
+    // Security: Prevent new window creation
+    app.on('web-contents-created', (event, contents) => {
+        contents.on('new-window', async (event, navigationUrl) => {
+            event.preventDefault();
+            const { shell } = await import('electron');
+            shell.openExternal(navigationUrl);
+        });
+    });
 }
 
 async function startApp() {
@@ -210,42 +232,6 @@ async function startWebServer() {
     return startServer(server);
 }
 
-function openPlaylistsFolder(playlistsDir) {
-    const commands = {
-        win32: `start "" "${playlistsDir}"`,
-        darwin: `open "${playlistsDir}"`,
-        linux: `xdg-open "${playlistsDir}"`
-    };
-
-    const command = commands[process.platform] || commands.linux;
-
-    exec(command, (error, stdout, stderr) => {
-        if (error) {
-            if (process.platform === 'win32' && error.code === 1) {
-                console.log(`Opened playlists folder: ${playlistsDir}`);
-                return;
-            }
-            console.error(`Error opening playlists folder: ${error.message}`);
-            return;
-        }
-        if (stderr && process.platform !== 'win32') {
-            console.error(`Error output: ${stderr}`);
-            return;
-        }
-        console.log(`Opened playlists folder: ${playlistsDir}`);
-    });
-}
-
-async function handleMusicManagerAction(action, socket, io, ...args) {
-    try {
-        await appState.musicManager[action](...args);
-        const state = await appState.musicManager.getCurrentState();
-        io.emit('state-update', state);
-    } catch (error) {
-        socket.emit('error', error.message);
-    }
-}
-
 function setupSocketIO(io, playlistsDir) {
     io.on('connection', (socket) => {
         console.log('Client connected:', socket.id);
@@ -331,44 +317,50 @@ async function cleanupApp() {
     }
 }
 
-function createAppEventHandlers() {
-    // App event handlers
-    app.whenReady().then(() => {
-        startApp();
-
-        app.on('activate', () => {
-            if (BrowserWindow.getAllWindows().length === 0) {
-                createWindow();
-            }
-        });
-    });
-
-    app.on('window-all-closed', async () => {
-        await cleanupApp();
-
-        if (process.platform !== 'darwin') {
-            app.quit();
+async function stopMusic() {
+    if (appState.musicManager) {
+        try {
+            await appState.musicManager.stop();
+        } catch (error) {
+            console.error('Error stopping music:', error);
         }
-    });
+    }
+}
 
-    app.on('before-quit', cleanupApp);
+function openPlaylistsFolder(playlistsDir) {
+    const commands = {
+        win32: `start "" "${playlistsDir}"`,
+        darwin: `open "${playlistsDir}"`,
+        linux: `xdg-open "${playlistsDir}"`
+    };
 
-    // Security: Prevent new window creation
-    app.on('web-contents-created', (event, contents) => {
-        contents.on('new-window', async (event, navigationUrl) => {
-            event.preventDefault();
-            const { shell } = await import('electron');
-            shell.openExternal(navigationUrl);
-        });
+    const command = commands[process.platform] || commands.linux;
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            if (process.platform === 'win32' && error.code === 1) {
+                console.log(`Opened playlists folder: ${playlistsDir}`);
+                return;
+            }
+            console.error(`Error opening playlists folder: ${error.message}`);
+            return;
+        }
+        if (stderr && process.platform !== 'win32') {
+            console.error(`Error output: ${stderr}`);
+            return;
+        }
+        console.log(`Opened playlists folder: ${playlistsDir}`);
     });
 }
 
-function savePlaylistState(playlistName) {
-    if (appState.store) {
-        appState.store.set('lastPlaylist', playlistName);
+async function handleMusicManagerAction(action, socket, io, ...args) {
+    try {
+        await appState.musicManager[action](...args);
+        const state = await appState.musicManager.getCurrentState();
+        io.emit('state-update', state);
+    } catch (error) {
+        socket.emit('error', error.message);
     }
-    StateManager.saveLastPlaylist(playlistName);
-    console.log(`Saved last playlist: ${playlistName}`);
 }
 
 function getLastPlaylist() {
