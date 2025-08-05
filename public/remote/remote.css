@@ -201,7 +201,7 @@ body {
     justify-content: center;
     gap: 8px;
 }
-
+    
 .footer-row > * {
     flex: 1;
 }
@@ -271,10 +271,6 @@ body {
     }
     
     .footer {
-        gap: 0.5rem;
-    }
-    
-    .footer-row-second {
         gap: 0.5rem;
     }
     
