@@ -77,7 +77,20 @@ class MusicPlayer {
             this.currentPlaylist.textContent = state.currentPlaylist;
         }
 
-        // Update song info
+        // Handle stopped state (music stopped)
+        if (!state.isPlaying && !state.isPaused) {
+            console.log('Music stopped - pausing audio');
+            if (!this.audioPlayer.paused) {
+                this.audioPlayer.pause();
+            }
+            // Still update song display if there's a current song
+            if (state.currentSong) {
+                this.updateSongDisplay(state.currentSong);
+            }
+            return;
+        }
+
+        // Update song info and handle play/pause
         if (state.currentSong) {
             this.updateSongDisplay(state.currentSong);
             this.loadAudio(state.currentSong, state.isPlaying, state.isPaused, state.shouldRestart);
@@ -133,7 +146,7 @@ class MusicPlayer {
                 }, { once: true });
             }
         } else {
-            // Same song, just handle play/pause state
+            // Same song, just handle play/pause/stop state
             if (isPlaying && !isPaused) {
                 if (this.audioPlayer.paused) {
                     console.log('Resuming playback');
@@ -147,6 +160,12 @@ class MusicPlayer {
             } else if (isPaused) {
                 if (!this.audioPlayer.paused) {
                     console.log('Pausing playback');
+                    this.audioPlayer.pause();
+                }
+            } else if (!isPlaying && !isPaused) {
+                // Handle stopped state
+                if (!this.audioPlayer.paused) {
+                    console.log('Stopping playback');
                     this.audioPlayer.pause();
                 }
             }
