@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 import StateManager from './utils/stateManager.js';
+import { findAvailablePort } from './utils/network.js';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import http from 'http';
@@ -216,6 +217,11 @@ async function startWebServer() {
     const expressApp = express();
     const server = http.createServer(expressApp);
     const io = new SocketIOServer(server);
+
+    // Find available port starting from 3000
+    const availablePort = await findAvailablePort(3000);
+    CONFIG.PORT = availablePort;
+    console.log(`Using port: ${CONFIG.PORT}`);
 
     const { publicDir, playlistsDir } = resolvePaths();
 
