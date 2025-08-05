@@ -58,7 +58,7 @@ A highly customisable music player for your streaming setup with remote control 
 
 ```
 obs-playlist-player/
-├── server.js                 # Main server file
+├── main.js                   # Main Electron app with integrated web server
 ├── package.json              # Dependencies
 ├── public/                   # Web interface files
 │   ├── player.html           # Music player page
