@@ -5,7 +5,6 @@ class RemoteControl {
         this.connectionStatus = document.getElementById('connection-status');
         this.currentSongTitle = document.getElementById('current-song-title');
         this.currentSongArtist = document.getElementById('current-song-artist');
-        this.playlistName = document.getElementById('playlist-name');
         this.playbackState = document.getElementById('playback-state');
         this.playerStatus = document.getElementById('player-status');
         this.playPauseBtn = document.getElementById('play-pause-btn');
@@ -116,9 +115,6 @@ class RemoteControl {
             this.currentSongTitle.textContent = 'No song';
             this.currentSongArtist.textContent = 'No artist';
         }
-
-        // Update playlist name
-        this.playlistName.textContent = state.currentPlaylist || 'No playlist selected';
 
         // Update playback state
         this.updatePlaybackState(state.isPlaying, state.isPaused);
