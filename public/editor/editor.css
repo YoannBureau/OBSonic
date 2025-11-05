@@ -120,7 +120,8 @@ body {
 
 /* Section Headers */
 .section-header {
-    padding: 12px 16px;
+    height: 30px;
+    padding-left: 10px;
     background: #2d2d30;
     border-bottom: 1px solid #3e3e3e;
     display: flex;
