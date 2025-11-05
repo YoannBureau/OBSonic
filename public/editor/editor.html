@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Editor</title>
+    <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+    <div class="editor-container">
+        <!-- Top Section: Player Preview -->
+        <div class="preview-section">
+            <div class="section-header">
+                <h3>Player Preview</h3>
+            </div>
+            <iframe id="player-preview" src="/player" frameborder="0"></iframe>
+        </div>
+
+        <!-- Bottom Section: File Browser and Code Editor -->
+        <div class="editor-section">
+            <!-- Left: File Browser -->
+            <div class="file-browser">
+                <div class="section-header">
+                    <h3>Files</h3>
+                </div>
+                <div id="file-list" class="file-list">
+                    <div class="loading">Loading files...</div>
+                </div>
+            </div>
+
+            <!-- Right: Monaco Editor -->
+            <div class="code-editor-container">
+                <div class="section-header">
+                    <h3 id="current-file-name">No file selected</h3>
+                    <button id="save-btn" class="save-btn" disabled>Save</button>
+                </div>
+                <div id="monaco-editor"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monaco Editor from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+    <script src="editor.js"></script>
+</body>
+</html>
+
