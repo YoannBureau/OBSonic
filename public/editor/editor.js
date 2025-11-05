@@ -226,6 +226,26 @@ class PlayerEditor {
 
 // Initialize editor when page loads
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize Split.js for vertical split (top preview / bottom editor)
+    Split(['#preview-pane', '#editor-pane'], {
+        direction: 'vertical',
+        sizes: [50, 50],
+        minSize: [100, 200],
+        gutterSize: 5,
+        cursor: 'row-resize',
+        snapOffset: 0
+    });
+
+    // Initialize Split.js for horizontal split (left file browser / right code editor)
+    Split(['#file-browser-pane', '#code-editor-pane'], {
+        direction: 'horizontal',
+        sizes: [20, 80],
+        minSize: [150, 400],
+        gutterSize: 5,
+        cursor: 'col-resize',
+        snapOffset: 0
+    });
+
     window.playerEditor = new PlayerEditor();
 });
 

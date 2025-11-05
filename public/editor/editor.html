@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Player Editor</title>
     <link rel="stylesheet" href="editor.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/split.js@1.6.5/dist/split.min.css">
 </head>
 <body>
     <div class="editor-container">
         <!-- Top Section: Player Preview -->
-        <div class="preview-section">
+        <div id="preview-pane" class="preview-section">
             <div class="section-header">
                 <h3>Player Preview</h3>
             </div>
@@ -17,9 +18,9 @@
         </div>
 
         <!-- Bottom Section: File Browser and Code Editor -->
-        <div class="editor-section">
+        <div id="editor-pane" class="editor-section">
             <!-- Left: File Browser -->
-            <div class="file-browser">
+            <div id="file-browser-pane" class="file-browser">
                 <div class="section-header">
                     <h3>Files</h3>
                 </div>
@@ -29,7 +30,7 @@
             </div>
 
             <!-- Right: Monaco Editor -->
-            <div class="code-editor-container">
+            <div id="code-editor-pane" class="code-editor-container">
                 <div class="section-header">
                     <h3 id="current-file-name">No file selected</h3>
                     <button id="save-btn" class="save-btn" disabled>Save</button>
@@ -39,6 +40,8 @@
         </div>
     </div>
 
+    <!-- Split.js -->
+    <script src="https://cdn.jsdelivr.net/npm/split.js@1.6.5/dist/split.min.js"></script>
     <!-- Monaco Editor from local files -->
     <script src="libs/monaco-editor/vs/loader.js"></script>
     <script src="editor.js"></script>

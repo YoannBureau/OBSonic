@@ -20,11 +20,10 @@ body {
 
 /* Top Section: Player Preview */
 .preview-section {
-    height: 50%;
     display: flex;
     flex-direction: column;
-    border-bottom: 2px solid #3e3e3e;
     background: #252526;
+    overflow: hidden;
 }
 
 #player-preview {
@@ -35,14 +34,13 @@ body {
 
 /* Bottom Section: Editor */
 .editor-section {
-    height: 50%;
     display: flex;
     flex-direction: row;
+    overflow: hidden;
 }
 
 /* File Browser */
 .file-browser {
-    width: 250px;
     background: #252526;
     border-right: 1px solid #3e3e3e;
     display: flex;
@@ -57,7 +55,7 @@ body {
 }
 
 .file-item {
-    padding: 8px 16px;
+    padding: 2px 6px;
     cursor: pointer;
     transition: background 0.2s;
     display: flex;
@@ -192,5 +190,26 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #4e4e4e;
+}
+
+/* Split.js Gutter Styling */
+.gutter {
+    background-color: #3e3e3e;
+    background-repeat: no-repeat;
+    background-position: 50%;
+}
+
+.gutter.gutter-horizontal {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
+    cursor: col-resize;
+}
+
+.gutter.gutter-vertical {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFCAYAAABSfk4FAAAAH0lEQVQYV2NkYGD4z0ABYCKhDjZgNPzRBIKkEQw/BADzTgQEORDHfAAAAABJRU5ErkJggg==');
+    cursor: row-resize;
+}
+
+.gutter:hover {
+    background-color: #007acc;
 }
 
