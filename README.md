@@ -6,6 +6,8 @@
 
 Perfect for OBS streaming setups with remote control functionality and a built-in style editor
 
+![Demo](https://i.imgur.com/mH4t9tY.gif)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Electron](https://img.shields.io/badge/Electron-28.0.0-47848F?logo=electron)](https://www.electronjs.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js)](https://nodejs.org/)
