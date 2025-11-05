@@ -89,6 +89,14 @@ class RemoteControl {
                 this.socket.emit('open-playlists');
             });
         }
+
+        // Open player button
+        const openPlayerEditorBtn = document.getElementById('open-player-editor-btn');
+        if (openPlayerEditorBtn) {
+            openPlayerEditorBtn.addEventListener('click', () => {
+                this.socket.emit('open-player-editor-window');
+            });
+        }
     }
 
     updateConnectionStatus() {

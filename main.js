@@ -29,6 +29,7 @@ const CONFIG = {
 // Application state
 const appState = {
     mainWindow: null,
+    playerEditorWindows: [],
     webServer: null,
     musicManager: null,
     store: null,
@@ -85,6 +86,111 @@ function setupWindowEvents() {
             appState.mainWindow.loadURL(remoteUrl);
         }, CONFIG.RETRY_DELAY);
     });
+}
+
+function createPlayerEditorWindow() {
+    const playerEditorWindow = new BrowserWindow({
+        width: 1280,
+        height: 720,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+        },
+        title: 'Player Editor',
+        icon: path.join(__dirname, 'public', 'assets', 'icon.png'),
+        show: false
+    });
+
+    // Create custom menu with refresh option
+    const menuTemplate = [
+        {
+            label: 'View',
+            submenu: [
+                {
+                    label: 'Refresh',
+                    accelerator: 'CmdOrCtrl+R',
+                    click: () => {
+                        playerEditorWindow.reload();
+                    }
+                },
+                {
+                    label: 'Force Refresh',
+                    accelerator: 'CmdOrCtrl+Shift+R',
+                    click: () => {
+                        playerEditorWindow.webContents.reloadIgnoringCache();
+                    }
+                },
+                { type: 'separator' },
+                {
+                    label: 'Toggle Developer Tools',
+                    accelerator: 'CmdOrCtrl+Shift+I',
+                    click: () => {
+                        playerEditorWindow.webContents.toggleDevTools();
+                    }
+                },
+                { type: 'separator' },
+                {
+                    label: 'Toggle Fullscreen',
+                    accelerator: 'F11',
+                    click: () => {
+                        playerEditorWindow.setFullScreen(!playerEditorWindow.isFullScreen());
+                    }
+                }
+            ]
+        },
+        {
+            label: 'Window',
+            submenu: [
+                {
+                    label: 'Close',
+                    accelerator: 'CmdOrCtrl+W',
+                    click: () => {
+                        playerEditorWindow.close();
+                    }
+                }
+            ]
+        }
+    ];
+
+    const menu = Menu.buildFromTemplate(menuTemplate);
+    playerEditorWindow.setMenu(menu);
+
+    // Prevent page title from overriding window title
+    playerEditorWindow.on('page-title-updated', (event) => {
+        event.preventDefault();
+    });
+
+    // Load player URL
+    const playerUrl = `http://localhost:${CONFIG.PORT}/player`;
+    playerEditorWindow.loadURL(playerUrl);
+
+    // Show window when ready
+    playerEditorWindow.once('ready-to-show', () => {
+        playerEditorWindow.show();
+        console.log('Player window opened');
+    });
+
+    // Handle window close
+    playerEditorWindow.on('closed', () => {
+        const index = appState.playerEditorWindows.indexOf(playerEditorWindow);
+        if (index > -1) {
+            appState.playerEditorWindows.splice(index, 1);
+        }
+        console.log('Player window closed');
+    });
+
+    // Handle failed load
+    playerEditorWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        console.error('Failed to load player page:', errorDescription);
+        setTimeout(() => {
+            playerEditorWindow.loadURL(playerUrl);
+        }, CONFIG.RETRY_DELAY);
+    });
+
+    // Track the window
+    appState.playerEditorWindows.push(playerEditorWindow);
+    
+    return playerEditorWindow;
 }
 
 function createAppEventHandlers() {
@@ -285,6 +391,15 @@ function setupSocketIO(io, playlistsDir) {
             }
         });
 
+        socket.on('open-player-editor-window', () => {
+            try {
+                createPlayerEditorWindow();
+            } catch (error) {
+                console.error('Error opening player editor window:', error);
+                socket.emit('error', 'Failed to open player editor window');
+            }
+        });
+
         socket.on('disconnect', () => {
             console.log('Client disconnected:', socket.id);
             if (appState.connectedPlayers.has(socket.id)) {
@@ -313,6 +428,14 @@ function startServer(server) {
 
 async function cleanupApp() {
     await stopMusic();
+
+    // Close all player windows
+    appState.playerEditorWindows.forEach(window => {
+        if (window && !window.isDestroyed()) {
+            window.close();
+        }
+    });
+    appState.playerEditorWindows = [];
 
     if (appState.webServer) {
         appState.webServer.close();
