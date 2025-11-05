@@ -18,7 +18,7 @@ class PlayerEditor {
     initMonaco() {
         require.config({ 
             paths: { 
-                'vs': '/libs/monaco-editor/vs' 
+                'vs': 'libs/monaco-editor/vs' 
             }
         });
 
