@@ -160,9 +160,9 @@ function createPlayerEditorWindow() {
         event.preventDefault();
     });
 
-    // Load player URL
-    const playerUrl = `http://localhost:${CONFIG.PORT}/player`;
-    playerEditorWindow.loadURL(playerUrl);
+    // Load editor URL
+    const editorUrl = `http://localhost:${CONFIG.PORT}/editor`;
+    playerEditorWindow.loadURL(editorUrl);
 
     // Show window when ready
     playerEditorWindow.once('ready-to-show', () => {
@@ -181,9 +181,9 @@ function createPlayerEditorWindow() {
 
     // Handle failed load
     playerEditorWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-        console.error('Failed to load player page:', errorDescription);
+        console.error('Failed to load editor page:', errorDescription);
         setTimeout(() => {
-            playerEditorWindow.loadURL(playerUrl);
+            playerEditorWindow.loadURL(editorUrl);
         }, CONFIG.RETRY_DELAY);
     });
 
@@ -289,7 +289,8 @@ function setupRoutes(expressApp, publicDir) {
     const routes = [
         { path: '/', file: 'player/player.html' },
         { path: '/player', file: 'player/player.html' },
-        { path: '/remote', file: 'remote/remote.html' }
+        { path: '/remote', file: 'remote/remote.html' },
+        { path: '/editor', file: 'editor/editor.html' }
     ];
 
     routes.forEach(({ path: routePath, file }) => {
@@ -299,7 +300,7 @@ function setupRoutes(expressApp, publicDir) {
     });
 }
 
-function setupApiRoutes(expressApp) {
+function setupApiRoutes(expressApp, publicDir) {
     expressApp.get('/api/playlists', async (req, res) => {
         try {
             const playlists = await appState.musicManager.getPlaylists();
@@ -314,6 +315,68 @@ function setupApiRoutes(expressApp) {
             const state = await appState.musicManager.getCurrentState();
             res.json(state);
         } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    // API endpoints for player file editing
+    expressApp.get('/api/player-files', async (req, res) => {
+        try {
+            const playerDir = path.join(publicDir, 'player');
+            const files = fs.readdirSync(playerDir).filter(file => {
+                return file.endsWith('.html') || file.endsWith('.css') || file.endsWith('.js');
+            });
+            res.json(files);
+        } catch (error) {
+            console.error('Error listing player files:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    expressApp.get('/api/player-files/:filename', async (req, res) => {
+        try {
+            const filename = req.params.filename;
+            const playerDir = path.join(publicDir, 'player');
+            const filePath = path.join(playerDir, filename);
+
+            // Security: ensure the file is within the player directory
+            const normalizedPath = path.normalize(filePath);
+            const normalizedPlayerDir = path.normalize(playerDir);
+            if (!normalizedPath.startsWith(normalizedPlayerDir)) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+
+            if (!fs.existsSync(filePath)) {
+                return res.status(404).json({ error: 'File not found' });
+            }
+
+            const content = fs.readFileSync(filePath, 'utf8');
+            res.json({ filename, content });
+        } catch (error) {
+            console.error('Error reading player file:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    expressApp.put('/api/player-files/:filename', express.json(), async (req, res) => {
+        try {
+            const filename = req.params.filename;
+            const { content } = req.body;
+            const playerDir = path.join(publicDir, 'player');
+            const filePath = path.join(playerDir, filename);
+
+            // Security: ensure the file is within the player directory
+            const normalizedPath = path.normalize(filePath);
+            const normalizedPlayerDir = path.normalize(playerDir);
+            if (!normalizedPath.startsWith(normalizedPlayerDir)) {
+                return res.status(403).json({ error: 'Access denied' });
+            }
+
+            fs.writeFileSync(filePath, content, 'utf8');
+            console.log(`File saved: ${filename}`);
+            res.json({ success: true, filename });
+        } catch (error) {
+            console.error('Error saving player file:', error);
             res.status(500).json({ error: error.message });
         }
     });
@@ -333,7 +396,7 @@ async function startWebServer() {
 
     setupExpressApp(expressApp, publicDir, playlistsDir);
     setupRoutes(expressApp, publicDir);
-    setupApiRoutes(expressApp);
+    setupApiRoutes(expressApp, publicDir);
     setupSocketIO(io, playlistsDir);
 
     appState.socketServer = io;
