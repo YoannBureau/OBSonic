@@ -226,7 +226,7 @@ export function writeOpenApiSpec(publicDir, port) {
         openapi: '3.0.3',
         info: {
             title: 'OBSonic API',
-            version: '1.0.0',
+            version: '1.1.0',
             description:
                 'REST API for third-party control of OBSonic — a music player designed for streaming setups.\n\n' +
                 '> **Note:** All endpoints are restricted to localhost. CORS is open for any origin on the same machine.',
