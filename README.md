@@ -32,6 +32,8 @@ Perfect for OBS streaming setups with remote control functionality and a built-i
 - **Framework-Free HTML/CSS/JS** - Easy to customize without complex build processes
 - **Syntax Highlighting** - Full IDE experience for editing player styles and behavior
 - **Live Preview** - See your changes instantly in the preview pane
+- **Unsaved Change Indicators** - VS Code-style `●` dot on modified files, preserved across file switches
+- **Save All** - Save every modified file at once with one click or `Ctrl+Shift+S`
 
 ### 🎵 **Playlist Management**
 - **Multiple Playlists** - Organize your music by mood, genre, or stream theme
@@ -46,6 +48,13 @@ Perfect for OBS streaming setups with remote control functionality and a built-i
 - **Multiple Connections** - Connect unlimited remote controls simultaneously
 - **Playback Controls** - Play, pause, next, previous, restart
 - **Status Display** - Current song and connection status at a glance
+
+### 📡 **Third-Party REST API**
+- **HTTP Control** - Any tool (Stream Deck plugins, scripts, dashboards) can control OBSonic via REST
+- **Swagger UI** - Interactive API documentation at `/api/docs` with live "Try it out" support
+- **Localhost Only** - API is restricted to loopback for security
+- **Socket.io sync** - Every REST call also broadcasts a `state-update` to all connected clients
+- **Full endpoint coverage** - Play, pause, next, previous, restart, switch playlist, get state
 
 ### 💻 **Developer Experience**
 - **Cross-Platform** - Windows, macOS, and Linux support
@@ -94,12 +103,12 @@ Perfect for OBS streaming setups with remote control functionality and a built-i
    npm start
    ```
 
-4. **Click "Open playlists" button, then drag your MP3 files in your playlist folders**
+4. **Click "Playlists folder" button, then drag your MP3 files in your playlist folders**
 
 ### OBS Setup
 
 1. **Access the player**
-   - Click "Copy link" button in the remote control
+   - Click **"Player link"** button in the remote control
    - The player URL will be copied to your clipboard
 
 2. **Add to OBS**
@@ -137,7 +146,10 @@ Control your music from anywhere:
   - ▶️/⏸️ **Play/Pause** - Toggle playback
   - ⏭️ **Next** - Skip to next random song
 - **Real-Time Status** - Current song and connection state
-- **Copy Link** - Quick button to copy player URL for OBS
+- **📁 Playlists folder** - Open your playlists directory in Explorer/Finder
+- **📋 Player link** - Copy player URL to clipboard for OBS
+- **📺 Player Editor** - Open the built-in code editor window
+- **📡 API Docs** - Open the interactive REST API documentation
 
 ### 🛠️ Code Editor (Electron app, or `/editor`)
 
@@ -145,10 +157,41 @@ Built-in development environment:
 
 - **File Browser** - Navigate player files (HTML, CSS, JS)
 - **Monaco Editor** - Full VSCode editor with syntax highlighting
+- **Unsaved Change Tracking** - `●` dot appears on modified files (VS Code-style), edits are preserved in memory when switching between files
+- **Save** - Save current file with `Ctrl+S` (`Cmd+S` on Mac)
+- **Save All** - Save all modified files at once with the **Save All** button or `Ctrl+Shift+S`
+- **Toast Notifications** - Non-intrusive save confirmations at the bottom of the screen
 - **Live Preview** - See changes in real-time
 - **Resizable Panes** - Drag dividers to adjust layout
-- **Auto-Save** - Save with Ctrl+S (Cmd+S on Mac)
 - **Syntax Support** - JavaScript, HTML, CSS, and JSON
+
+### 📡 REST API (`/api/...`)
+
+Control OBSonic from any third-party tool over HTTP (localhost only):
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/api/state` | Full current playback state |
+| `GET` | `/api/playlists` | List all available playlists |
+| `POST` | `/api/play` | Resume playback |
+| `POST` | `/api/pause` | Pause playback |
+| `POST` | `/api/next` | Skip to next song |
+| `POST` | `/api/previous` | Go to previous song |
+| `POST` | `/api/restart` | Restart current song |
+| `POST` | `/api/playlist` | Switch playlist — body: `{ "name": "Lofi" }` |
+| `GET` | `/api/docs` | Interactive Swagger UI documentation |
+
+```bash
+# Example: skip to next song
+curl -X POST http://localhost:3000/api/next
+
+# Example: switch playlist
+curl -X POST http://localhost:3000/api/playlist \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Synthwave"}'
+```
+
+All mutating endpoints automatically broadcast a `state-update` Socket.io event to keep all connected clients (remote, player) in sync.
 
 ---
 
@@ -198,10 +241,10 @@ OBSonic/
 ├── package.json                 # Project configuration & dependencies
 │
 ├── public/                      # Frontend interfaces
-│   ├── player/                  # Music player interface
+│   ├── player/                  # Music player interface (OBS widget)
 │   │   ├── player.html          # Player layout
 │   │   ├── player.css           # Player styling
-│   │   └── player.js            # Player logic
+│   │   └── player.js            # Player logic & audio engine
 │   │
 │   ├── remote/                  # Remote control interface
 │   │   ├── remote.html          # Remote layout
@@ -211,15 +254,20 @@ OBSonic/
 │   ├── editor/                  # Built-in code editor
 │   │   ├── editor.html          # Editor layout
 │   │   ├── editor.css           # Editor styling
-│   │   ├── editor.js            # Editor logic
+│   │   ├── editor.js            # Editor logic (per-file dirty tracking)
 │   │   └── libs/                # Monaco editor files
+│   │
+│   ├── docs/                    # API documentation
+│   │   ├── index.html           # Swagger UI page
+│   │   └── openapi.json         # OpenAPI 3.0 spec (generated at startup)
 │   │
 │   └── assets/                  # Icons and images
 │
 ├── utils/                       # Backend utilities
 │   ├── musicManager.js          # Playlist & playback management
 │   ├── stateManager.js          # Application state persistence
-│   └── network.js               # Network utilities
+│   ├── network.js               # Port detection utilities
+│   └── apiRoutes.js             # Third-party REST API routes & OpenAPI spec writer
 │
 └── playlists/                   # Music library (user-managed)
     ├── Synthwave/               # Example playlist
@@ -232,15 +280,21 @@ OBSonic/
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
 | **Desktop App** | Electron 28 | Cross-platform native application |
-| **Backend** | Express.js | HTTP server for interfaces |
+| **Backend** | Express.js | HTTP server for interfaces & REST API |
 | **Real-time** | Socket.io | WebSocket communication |
 | **Frontend** | Vanilla JS | No framework dependencies |
 | **Editor** | Monaco Editor | VSCode's editor for code editing |
 | **UI Components** | Split.js | Resizable panes |
 | **Storage** | Electron Store | Persistent state management |
 | **Metadata** | music-metadata | MP3 ID3 tag extraction |
+| **API Docs** | Swagger UI (CDN) | Interactive REST API documentation |
 
 ### Key Components
+
+#### **API Routes** (`utils/apiRoutes.js`)
+- Registers all public REST API endpoints under `/api/`
+- Applies localhost-only and CORS middleware per-router
+- Generates and writes `openapi.json` at startup with the dynamic port
 
 #### **Music Manager** (`utils/musicManager.js`)
 - Scans playlist directories
@@ -254,8 +308,7 @@ OBSonic/
 - Restores state on app restart
 
 #### **Network Utilities** (`utils/network.js`)
-- Detects local IP addresses
-- Generates player URLs for OBS
+- Finds available local port starting from 3000
 
 ---
 
@@ -283,10 +336,11 @@ OBSonic/
 ### Customization Tips
 
 1. **Styling the Player**
-   - Open `/editor` in the app
+   - Open the **Player Editor** from the remote, or navigate to `/editor`
    - Edit `player.css` for visual changes
    - Modify `player.html` for layout changes
    - Update `player.js` for behavior changes
+   - Unsaved files show a `●` dot — use **Save All** (`Ctrl+Shift+S`) to save everything at once
 
 2. **Custom Album Art**
    - Ensure MP3 files have embedded album art
@@ -296,6 +350,12 @@ OBSonic/
    - Use descriptive folder names (they become playlist names)
    - Keep similar music together
    - Remove empty folders (they won't show up)
+
+4. **REST API Integration**
+   - The API is available at `http://localhost:<port>/api/`
+   - The port is auto-detected (default `3000`) and shown in the console on startup
+   - Visit `/api/docs` for the full interactive Swagger documentation
+   - All endpoints are localhost-only; CORS is open for any origin on the same machine
 
 ---
 
@@ -352,6 +412,8 @@ Contributions are welcome! Here's how you can help:
 | **Editor not loading** | Clear browser cache and restart app |
 | **OBS shows blank** | Ensure "Control audio via OBS" is checked |
 | **Remote not connecting** | Verify both devices are on same network |
+| **API returns 403** | API is localhost-only — ensure requests originate from `127.0.0.1` |
+| **Swagger shows wrong port** | Restart the app — `openapi.json` is regenerated at startup with the correct port |
 
 ### Getting Help
 - 📖 Check [Issues](https://github.com/YoannBureau/OBSonic/issues) for similar problems
@@ -375,6 +437,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - **Socket.io** - Real-time WebSocket communication
 - **Electron** - Cross-platform desktop framework
 - **music-metadata** - MP3 metadata extraction
+- **Swagger UI** - Interactive API documentation
 
 ---
 
@@ -390,6 +453,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 - [ ] Multiple theme presets
 - [ ] Mobile app for remote control
 - [ ] Cloud playlist sync
+- [ ] API key authentication option for non-localhost access
 
 ### Long-term Goals
 - Integration with Spotify/YouTube Music
