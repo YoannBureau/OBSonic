@@ -9,6 +9,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import fs from 'fs';
 import { exec } from 'child_process';
 import MusicManager from './utils/musicManager.js';
+import { setupPublicApiRoutes, writeOpenApiSpec } from './utils/apiRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -300,26 +301,8 @@ function setupRoutes(expressApp, publicDir) {
     });
 }
 
-function setupApiRoutes(expressApp, publicDir) {
-    expressApp.get('/api/playlists', async (req, res) => {
-        try {
-            const playlists = await appState.musicManager.getPlaylists();
-            res.json(playlists);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
-    expressApp.get('/api/current-state', async (req, res) => {
-        try {
-            const state = await appState.musicManager.getCurrentState();
-            res.json(state);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
-    // API endpoints for player file editing
+function setupInternalApiRoutes(expressApp, publicDir) {
+    // Internal API: player file editing (used by the Editor UI)
     expressApp.get('/api/player-files', async (req, res) => {
         try {
             const playerDir = path.join(publicDir, 'player');
@@ -380,6 +363,11 @@ function setupApiRoutes(expressApp, publicDir) {
             res.status(500).json({ error: error.message });
         }
     });
+
+    // Swagger UI docs page
+    expressApp.get('/api/docs', (req, res) => {
+        res.sendFile(path.join(publicDir, 'docs', 'index.html'));
+    });
 }
 
 async function startWebServer() {
@@ -396,13 +384,20 @@ async function startWebServer() {
 
     setupExpressApp(expressApp, publicDir, playlistsDir);
     setupRoutes(expressApp, publicDir);
-    setupApiRoutes(expressApp, publicDir);
+    setupInternalApiRoutes(expressApp, publicDir);
     setupSocketIO(io, playlistsDir);
 
     appState.socketServer = io;
     appState.musicManager = new MusicManager(playlistsDir, io);
     await appState.musicManager.initialize();
     console.log('Music manager initialized');
+
+    // Register the public third-party REST API routes
+    setupPublicApiRoutes(expressApp, () => appState);
+
+    // Write the OpenAPI spec (includes the dynamic port)
+    writeOpenApiSpec(publicDir, CONFIG.PORT);
+    console.log(`API docs available at http://localhost:${CONFIG.PORT}/api/docs`);
 
     return startServer(server);
 }

@@ -1,0 +1,466 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "OBSonic API",
+    "version": "1.0.0",
+    "description": "REST API for third-party control of OBSonic — a music player designed for streaming setups.\n\n> **Note:** All endpoints are restricted to localhost. CORS is open for any origin on the same machine.",
+    "contact": {
+      "name": "OBSonic"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local OBSonic server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Playback",
+      "description": "Control music playback"
+    },
+    {
+      "name": "Playlists",
+      "description": "Query and switch playlists"
+    },
+    {
+      "name": "State",
+      "description": "Query current player state"
+    }
+  ],
+  "paths": {
+    "/api/state": {
+      "get": {
+        "tags": [
+          "State"
+        ],
+        "summary": "Get full playback state",
+        "description": "Returns the complete current state: current song, playlist, play/pause status, and list of all playlists.",
+        "operationId": "getState",
+        "responses": {
+          "200": {
+            "description": "Current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/State"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/playlists": {
+      "get": {
+        "tags": [
+          "Playlists"
+        ],
+        "summary": "List all playlists",
+        "description": "Returns an alphabetically sorted array of playlist names detected in the playlists directory.",
+        "operationId": "getPlaylists",
+        "responses": {
+          "200": {
+            "description": "Array of playlist names",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "example": [
+                    "Fantasy",
+                    "Lofi",
+                    "Synthwave"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/playlist": {
+      "post": {
+        "tags": [
+          "Playlists"
+        ],
+        "summary": "Switch playlist",
+        "description": "Switches the active playlist. Triggers a shuffle and emits a state-update to all connected clients.",
+        "operationId": "switchPlaylist",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated state after switch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/State"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Playlist not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/play": {
+      "post": {
+        "tags": [
+          "Playback"
+        ],
+        "summary": "Resume playback",
+        "description": "Resumes playback if paused or stopped. Has no effect if already playing.",
+        "operationId": "play",
+        "responses": {
+          "200": {
+            "description": "Updated state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/State"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No song is loaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pause": {
+      "post": {
+        "tags": [
+          "Playback"
+        ],
+        "summary": "Pause playback",
+        "description": "Pauses the currently playing song. Toggles the pause state.",
+        "operationId": "pause",
+        "responses": {
+          "200": {
+            "description": "Updated state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/State"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No song is loaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/next": {
+      "post": {
+        "tags": [
+          "Playback"
+        ],
+        "summary": "Skip to next song",
+        "description": "Advances to the next track in the shuffled playlist. Re-shuffles and resets when all songs have been played.",
+        "operationId": "nextSong",
+        "responses": {
+          "200": {
+            "description": "Updated state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/State"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/previous": {
+      "post": {
+        "tags": [
+          "Playback"
+        ],
+        "summary": "Go to previous song",
+        "description": "Goes back to the previous track in the shuffled playlist.",
+        "operationId": "previousSong",
+        "responses": {
+          "200": {
+            "description": "Updated state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/State"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/restart": {
+      "post": {
+        "tags": [
+          "Playback"
+        ],
+        "summary": "Restart current song",
+        "description": "Restarts the current song from the beginning.",
+        "operationId": "restartSong",
+        "responses": {
+          "200": {
+            "description": "Updated state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/State"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Song": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "example": "song.mp3"
+          },
+          "title": {
+            "type": "string",
+            "example": "My Song"
+          },
+          "artist": {
+            "type": "string",
+            "example": "Artist Name"
+          },
+          "album": {
+            "type": "string",
+            "example": "Album Name"
+          },
+          "duration": {
+            "type": "number",
+            "example": 213.4
+          },
+          "relativePath": {
+            "type": "string",
+            "example": "Lofi/song.mp3"
+          },
+          "picture": {
+            "nullable": true,
+            "type": "object",
+            "properties": {
+              "format": {
+                "type": "string",
+                "example": "image/jpeg"
+              },
+              "data": {
+                "type": "string",
+                "description": "Base64-encoded album art"
+              }
+            }
+          }
+        }
+      },
+      "State": {
+        "type": "object",
+        "properties": {
+          "currentPlaylist": {
+            "type": "string",
+            "nullable": true,
+            "example": "Lofi"
+          },
+          "currentSong": {
+            "$ref": "#/components/schemas/Song",
+            "nullable": true
+          },
+          "isPlaying": {
+            "type": "boolean",
+            "example": true
+          },
+          "isPaused": {
+            "type": "boolean",
+            "example": false
+          },
+          "shouldRestart": {
+            "type": "boolean",
+            "example": false
+          },
+          "playlists": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "Fantasy",
+              "Lofi",
+              "Synthwave"
+            ]
+          },
+          "playedSongs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "track1.mp3",
+              "track2.mp3"
+            ]
+          },
+          "totalSongs": {
+            "type": "integer",
+            "example": 12
+          }
+        }
+      },
+      "PlaylistRequest": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Lofi"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Playlist \"Unknown\" not found"
+          }
+        }
+      }
+    }
+  }
+}

@@ -234,6 +234,18 @@ body {
     background: rgba(76, 175, 80, 0.6);
 }
 
+.api-docs-btn {
+    background: rgba(210, 153, 34, 0.2);
+    border: 1px solid rgba(210, 153, 34, 0.35);
+    color: #f0c060;
+}
+
+.api-docs-btn:hover {
+    background: rgba(210, 153, 34, 0.35);
+    color: #ffd97a;
+    transform: translateY(-2px);
+}
+
 /* Responsive design */
 @media (max-width: 480px) {
     .remote-container {
