@@ -90,6 +90,30 @@ body {
     content: '🌐';
 }
 
+/* Unsaved-changes marker on file items */
+.file-item.modified {
+    color: #e2c08d;
+}
+
+.file-item.modified.active {
+    color: #ffd7a0;
+}
+
+.dirty-dot {
+    color: #e2a85a;
+    font-size: 10px;
+    line-height: 1;
+    margin-right: 5px;
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.file-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .loading {
     padding: 16px;
     text-align: center;
@@ -118,13 +142,21 @@ body {
 
 /* Section Headers */
 .section-header {
-    height: 30px;
+    height: 35px;
     padding-left: 10px;
+    padding-right: 8px;
     background: #2d2d30;
     border-bottom: 1px solid #3e3e3e;
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .section-header h3 {
@@ -173,7 +205,79 @@ body {
     background: #388a34;
 }
 
-/* Scrollbar Styling */
+/* Save All Button */
+.save-all-btn {
+    padding: 6px 16px;
+    background: #3e3e3e;
+    color: #858585;
+    border: none;
+    border-radius: 4px;
+    cursor: not-allowed;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
+}
+
+.save-all-btn.has-changes {
+    background: #c5902c;
+    color: #ffffff;
+    cursor: pointer;
+}
+
+.save-all-btn.has-changes:hover {
+    background: #d4a84c;
+    color: #ffffff;
+}
+
+.save-all-btn:disabled {
+    background: #3e3e3e;
+    color: #858585;
+    cursor: not-allowed;
+}
+
+/* ── Toast notifications ───────────────────────────────────── */
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.toast {
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    white-space: nowrap;
+}
+
+.toast.toast-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast.toast-hiding {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+.toast.toast-success { background: #2a6e28; }
+.toast.toast-error   { background: #8b2a2a; }
+.toast.toast-info    { background: #1a4f7a; }
+
+/* ── Scrollbar Styling ─────────────────────────────────────── */
 ::-webkit-scrollbar {
     width: 10px;
     height: 10px;

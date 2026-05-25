@@ -1,14 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OBSonic API Docs</title>
-    <meta name="description" content="Interactive REST API documentation for OBSonic — control playback and playlists from any third-party tool.">
+    <meta name="description"
+        content="Interactive REST API documentation for OBSonic — control playback and playlists from any third-party tool.">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
     <style>
         /* ── Base reset ─────────────────────────────────────────────── */
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         body {
             font-family: 'Inter', system-ui, sans-serif;
@@ -25,7 +33,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
         }
 
         .obsonic-header .brand {
@@ -42,7 +50,7 @@
         }
 
         .obsonic-header .brand .badge {
-            background: rgba(255,255,255,0.25);
+            background: rgba(255, 255, 255, 0.25);
             color: #fff;
             font-size: 0.7rem;
             font-weight: 600;
@@ -52,18 +60,18 @@
         }
 
         .obsonic-header .back-btn {
-            color: rgba(255,255,255,0.85);
+            color: rgba(255, 255, 255, 0.85);
             text-decoration: none;
             font-size: 0.85rem;
             padding: 0.45rem 1rem;
-            border: 1px solid rgba(255,255,255,0.35);
+            border: 1px solid rgba(255, 255, 255, 0.35);
             border-radius: 8px;
             transition: all 0.2s;
             white-space: nowrap;
         }
 
         .obsonic-header .back-btn:hover {
-            background: rgba(255,255,255,0.15);
+            background: rgba(255, 255, 255, 0.15);
             color: #fff;
         }
 
@@ -84,15 +92,22 @@
             display: inline-flex;
             align-items: center;
             gap: 0.35rem;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid #30363d;
             border-radius: 6px;
             padding: 0.25rem 0.6rem;
             font-size: 0.78rem;
         }
 
-        .info-bar .chip.green { border-color: #238636; color: #3fb950; }
-        .info-bar .chip.amber { border-color: #9e6a03; color: #d29922; }
+        .info-bar .chip.green {
+            border-color: #238636;
+            color: #3fb950;
+        }
+
+        .info-bar .chip.amber {
+            border-color: #9e6a03;
+            color: #d29922;
+        }
 
         /* ── Swagger UI overrides (dark theme) ──────────────────────── */
         #swagger-ui {
@@ -102,11 +117,21 @@
         }
 
         /* Hide the default Swagger top bar — we have our own header */
-        .swagger-ui .topbar { display: none !important; }
+        .swagger-ui .topbar {
+            display: none !important;
+        }
 
-        .swagger-ui .info { margin-bottom: 1.5rem; }
-        .swagger-ui .info .title { color: #e6edf3 !important; }
-        .swagger-ui .info .description p { color: #8b949e !important; }
+        .swagger-ui .info {
+            margin-bottom: 1.5rem;
+        }
+
+        .swagger-ui .info .title {
+            color: #e6edf3 !important;
+        }
+
+        .swagger-ui .info .description p {
+            color: #8b949e !important;
+        }
 
         .swagger-ui .scheme-container {
             background: #161b22 !important;
@@ -133,9 +158,17 @@
             border-radius: 7px !important;
         }
 
-        .swagger-ui .opblock.opblock-get .opblock-summary-method  { background: #1a4f7a !important; }
-        .swagger-ui .opblock.opblock-post .opblock-summary-method { background: #1e4620 !important; }
-        .swagger-ui .opblock.opblock-put .opblock-summary-method  { background: #4a3200 !important; }
+        .swagger-ui .opblock.opblock-get .opblock-summary-method {
+            background: #1a4f7a !important;
+        }
+
+        .swagger-ui .opblock.opblock-post .opblock-summary-method {
+            background: #1e4620 !important;
+        }
+
+        .swagger-ui .opblock.opblock-put .opblock-summary-method {
+            background: #4a3200 !important;
+        }
 
         .swagger-ui .opblock .opblock-summary-description,
         .swagger-ui .opblock-description-wrapper p,
@@ -154,7 +187,9 @@
             border-radius: 6px !important;
         }
 
-        .swagger-ui .btn.execute:hover { background: #2ea043 !important; }
+        .swagger-ui .btn.execute:hover {
+            background: #2ea043 !important;
+        }
 
         .swagger-ui input[type=text],
         .swagger-ui textarea,
@@ -165,26 +200,53 @@
             border-radius: 6px !important;
         }
 
-        .swagger-ui .responses-inner { background: #0d1117 !important; }
-        .swagger-ui .response-col_description { color: #8b949e !important; }
-        .swagger-ui .microlight { background: #161b22 !important; color: #79c0ff !important; }
+        .swagger-ui .responses-inner {
+            background: #0d1117 !important;
+        }
 
-        .swagger-ui section.models { background: #161b22 !important; border: 1px solid #30363d !important; border-radius: 8px; }
-        .swagger-ui section.models h4 { color: #c9d1d9 !important; }
-        .swagger-ui .model-title { color: #79c0ff !important; }
-        .swagger-ui .prop-type { color: #ff7b72 !important; }
-        .swagger-ui .model { color: #c9d1d9 !important; }
+        .swagger-ui .response-col_description {
+            color: #8b949e !important;
+        }
+
+        .swagger-ui .microlight {
+            background: #161b22 !important;
+            color: #79c0ff !important;
+        }
+
+        .swagger-ui section.models {
+            background: #161b22 !important;
+            border: 1px solid #30363d !important;
+            border-radius: 8px;
+        }
+
+        .swagger-ui section.models h4 {
+            color: #c9d1d9 !important;
+        }
+
+        .swagger-ui .model-title {
+            color: #79c0ff !important;
+        }
+
+        .swagger-ui .prop-type {
+            color: #ff7b72 !important;
+        }
+
+        .swagger-ui .model {
+            color: #c9d1d9 !important;
+        }
     </style>
 </head>
+
 <body>
 
     <!-- ── Custom header ────────────────────────────────────────────── -->
     <header class="obsonic-header">
         <div class="brand">
-            <h1>🎵 OBSonic</h1>
+            <h1><img src="../assets/icon.png" alt="OBSonic REST API" class="remote-icon"
+                    style="width: 20px; height: 20px;">
+                OBSonic</h1>
             <span class="badge">REST API</span>
         </div>
-        <a href="/remote" class="back-btn">← Back to Remote</a>
     </header>
 
     <!-- ── Info bar ─────────────────────────────────────────────────── -->
@@ -216,4 +278,5 @@
         });
     </script>
 </body>
+
 </html>
