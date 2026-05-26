@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, Menu, shell } from 'electron';
 import path from 'path';
 import StateManager from './utils/stateManager.js';
 import { findAvailablePort } from './utils/network.js';
@@ -135,6 +135,17 @@ function createPlayerEditorWindow() {
                     accelerator: 'F11',
                     click: () => {
                         playerEditorWindow.setFullScreen(!playerEditorWindow.isFullScreen());
+                    }
+                },
+                { type: 'separator' },
+                {
+                    label: 'Open player folder',
+                    click: () => {
+                        const { publicDir } = resolvePaths();
+                        const playerDir = path.join(publicDir, 'player');
+                        shell.openPath(playerDir).catch(err => {
+                            console.error('Failed to open player folder:', err);
+                        });
                     }
                 }
             ]

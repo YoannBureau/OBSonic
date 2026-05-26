@@ -48,8 +48,6 @@
       "main.js",
       "utils/**/*",
       "public/**/*",
-      "playlists/**/*",
-      "node_modules/**/*",
       "package.json"
     ],
     "extraResources": [
@@ -59,7 +57,12 @@
       },
       {
         "from": "playlists",
-        "to": "app/playlists"
+        "to": "app/playlists",
+        "filter": [
+          "README.md",
+          "**/README.md",
+          "**/.gitkeep"
+        ]
       },
       {
         "from": "utils",
