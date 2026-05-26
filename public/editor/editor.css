@@ -90,6 +90,19 @@ body {
     content: '🌐';
 }
 
+.file-item.json::before {
+    content: '⚙️';
+}
+
+.file-item.png::before,
+.file-item.jpg::before,
+.file-item.jpeg::before,
+.file-item.gif::before,
+.file-item.webp::before,
+.file-item.svg::before {
+    content: '🖼️';
+}
+
 /* Unsaved-changes marker on file items */
 .file-item.modified {
     color: #e2c08d;

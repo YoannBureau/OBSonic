@@ -35,7 +35,8 @@ const appState = {
     musicManager: null,
     store: null,
     socketServer: null,
-    connectedPlayers: new Set()
+    connectedPlayers: new Set(),
+    playerWatcher: null
 };
 
 // Initialize electron-store dynamically
@@ -313,13 +314,27 @@ function setupRoutes(expressApp, publicDir) {
 }
 
 function setupInternalApiRoutes(expressApp, publicDir) {
+    // Helper function to recursively find all files in a directory
+    function getAllFiles(dirPath, baseDir = dirPath) {
+        let results = [];
+        if (!fs.existsSync(dirPath)) return results;
+        const list = fs.readdirSync(dirPath, { withFileTypes: true });
+        for (const entry of list) {
+            const fullPath = path.join(dirPath, entry.name);
+            if (entry.isDirectory()) {
+                results = results.concat(getAllFiles(fullPath, baseDir));
+            } else if (entry.isFile()) {
+                results.push(path.relative(baseDir, fullPath).replace(/\\/g, '/'));
+            }
+        }
+        return results;
+    }
+
     // Internal API: player file editing (used by the Editor UI)
     expressApp.get('/api/player-files', async (req, res) => {
         try {
             const playerDir = path.join(publicDir, 'player');
-            const files = fs.readdirSync(playerDir).filter(file => {
-                return file.endsWith('.html') || file.endsWith('.css') || file.endsWith('.js');
-            });
+            const files = getAllFiles(playerDir).sort();
             res.json(files);
         } catch (error) {
             console.error('Error listing player files:', error);
@@ -327,9 +342,9 @@ function setupInternalApiRoutes(expressApp, publicDir) {
         }
     });
 
-    expressApp.get('/api/player-files/:filename', async (req, res) => {
+    expressApp.get('/api/player-files/*', async (req, res) => {
         try {
-            const filename = req.params.filename;
+            const filename = req.params[0];
             const playerDir = path.join(publicDir, 'player');
             const filePath = path.join(playerDir, filename);
 
@@ -352,9 +367,9 @@ function setupInternalApiRoutes(expressApp, publicDir) {
         }
     });
 
-    expressApp.put('/api/player-files/:filename', express.json(), async (req, res) => {
+    expressApp.put('/api/player-files/*', express.json(), async (req, res) => {
         try {
-            const filename = req.params.filename;
+            const filename = req.params[0];
             const { content } = req.body;
             const playerDir = path.join(publicDir, 'player');
             const filePath = path.join(playerDir, filename);
@@ -364,6 +379,12 @@ function setupInternalApiRoutes(expressApp, publicDir) {
             const normalizedPlayerDir = path.normalize(playerDir);
             if (!normalizedPath.startsWith(normalizedPlayerDir)) {
                 return res.status(403).json({ error: 'Access denied' });
+            }
+
+            // Ensure parent directories exist
+            const parentDir = path.dirname(filePath);
+            if (!fs.existsSync(parentDir)) {
+                fs.mkdirSync(parentDir, { recursive: true });
             }
 
             fs.writeFileSync(filePath, content, 'utf8');
@@ -409,6 +430,19 @@ async function startWebServer() {
     // Write the OpenAPI spec (includes the dynamic port)
     writeOpenApiSpec(publicDir, CONFIG.PORT);
     console.log(`API docs available at http://localhost:${CONFIG.PORT}/api/docs`);
+
+    // Setup file watcher for player folder
+    const playerDir = path.join(publicDir, 'player');
+    let watchTimeout;
+    if (fs.existsSync(playerDir)) {
+        appState.playerWatcher = fs.watch(playerDir, { recursive: true }, (eventType, filename) => {
+            if (watchTimeout) clearTimeout(watchTimeout);
+            watchTimeout = setTimeout(() => {
+                io.emit('player-files-changed');
+            }, 100);
+        });
+        console.log(`Watching player folder: ${playerDir}`);
+    }
 
     return startServer(server);
 }
@@ -512,6 +546,11 @@ async function cleanupApp() {
 
     if (appState.musicManager) {
         appState.musicManager.cleanup();
+    }
+
+    if (appState.playerWatcher) {
+        appState.playerWatcher.close();
+        appState.playerWatcher = null;
     }
 }
 

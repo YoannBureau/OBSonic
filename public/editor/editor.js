@@ -1,3 +1,12 @@
+const BINARY_EXTENSIONS = new Set([
+    'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico',
+    'woff', 'woff2', 'ttf', 'eot', 'otf',
+    'mp3', 'wav', 'ogg', 'm4a', 'flac',
+    'mp4', 'webm', 'ogv', 'avi', 'mkv',
+    'zip', 'tar', 'gz', 'rar', '7z',
+    'pdf', 'exe', 'dll', 'so', 'dylib'
+]);
+
 class PlayerEditor {
     constructor() {
         this.editor = null;
@@ -6,7 +15,7 @@ class PlayerEditor {
         /**
          * Per-file state map.
          * Key: filename (string)
-         * Value: { originalContent: string, currentContent: string, isModified: boolean }
+         * Value: { originalContent: string, currentContent: string, isModified: boolean, isBinary: boolean }
          */
         this.fileStates = new Map();
 
@@ -26,6 +35,7 @@ class PlayerEditor {
         this.initMonaco();
         this.loadFiles();
         this.setupEventListeners();
+        this.setupSocket();
     }
 
     initMonaco() {
@@ -54,7 +64,7 @@ class PlayerEditor {
                 if (this._suppressChangeEvent || !this.currentFile) return;
 
                 const state = this.fileStates.get(this.currentFile);
-                if (!state) return;
+                if (!state || state.isBinary) return;
 
                 const currentContent = this.editor.getValue();
                 state.currentContent = currentContent;
@@ -95,6 +105,16 @@ class PlayerEditor {
         });
     }
 
+    setupSocket() {
+        if (typeof io !== 'undefined') {
+            this.socket = io();
+            this.socket.on('player-files-changed', () => {
+                console.log('Player files changed on disk, reloading...');
+                this.loadFiles();
+            });
+        }
+    }
+
     async loadFiles() {
         try {
             const response = await fetch('/api/player-files');
@@ -102,16 +122,53 @@ class PlayerEditor {
 
             const files = await response.json();
 
+            // Clean up files no longer on disk
+            for (const file of this.fileStates.keys()) {
+                if (!files.includes(file)) {
+                    this.fileStates.delete(file);
+                }
+            }
+
             // Initialize a state entry for each file
             files.forEach(file => {
+                const ext = file.split('.').pop().toLowerCase();
+                const isBinary = BINARY_EXTENSIONS.has(ext);
                 if (!this.fileStates.has(file)) {
                     this.fileStates.set(file, {
                         originalContent: null,   // null = not yet loaded from server
                         currentContent: null,
-                        isModified: false
+                        isModified: false,
+                        isBinary: isBinary
                     });
                 }
             });
+
+            // If the currently open file was deleted
+            if (this.currentFile && !files.includes(this.currentFile)) {
+                this.currentFile = null;
+                this.editor.setValue('// The file was deleted or moved');
+                this.editor.updateOptions({ readOnly: true });
+                this._updateTitleBar();
+                this.saveBtn.disabled = true;
+                this._updateSaveAllBtnState();
+            } else if (this.currentFile) {
+                const state = this.fileStates.get(this.currentFile);
+                if (state && !state.isModified && !state.isBinary) {
+                    try {
+                        const fileRes = await fetch(`/api/player-files/${encodeURIComponent(this.currentFile)}`);
+                        if (fileRes.ok) {
+                            const data = await fileRes.json();
+                            if (state.originalContent !== data.content) {
+                                state.originalContent = data.content;
+                                state.currentContent = data.content;
+                                this._loadContentIntoEditor(this.currentFile, data.content);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error reloading active file content:', e);
+                    }
+                }
+            }
 
             this.renderFileList(files);
         } catch (error) {
@@ -133,7 +190,7 @@ class PlayerEditor {
             fileItem.dataset.file = file;
 
             // Extension-based icon class
-            const ext = file.split('.').pop();
+            const ext = file.split('.').pop().toLowerCase();
             fileItem.classList.add(ext);
 
             fileItem.addEventListener('click', () => this.openFile(file));
@@ -163,13 +220,40 @@ class PlayerEditor {
         item.innerHTML = `${dot}<span class="file-label">${filename}</span>`;
     }
 
+    _loadBinaryMessage(filename) {
+        this._suppressChangeEvent = true;
+        this.currentFile = filename;
+        const ext = filename.split('.').pop().toUpperCase();
+        this.editor.setValue(`/*\n * Binary File: ${filename}\n *\n * Preview and editing of ${ext} files is not supported in the text editor.\n */`);
+        this.editor.updateOptions({ readOnly: true });
+        monaco.editor.setModelLanguage(this.editor.getModel(), 'plaintext');
+        this._suppressChangeEvent = false;
+
+        // Update UI
+        this._updateTitleBar();
+        this.saveBtn.disabled = true;
+        this.saveBtn.classList.remove('modified', 'saved', 'saving');
+        this._updateSaveAllBtnState();
+
+        // Refresh all file items (active highlight + dirty dots)
+        this.fileStates.forEach((_, fn) => this._refreshFileItem(fn));
+    }
+
     async openFile(filename) {
         // Flush current editor content into fileStates before switching
         if (this.currentFile && this.editor) {
             const state = this.fileStates.get(this.currentFile);
-            if (state) {
+            if (state && !state.isBinary) {
                 state.currentContent = this.editor.getValue();
             }
+        }
+
+        const ext = filename.split('.').pop().toLowerCase();
+        const isBinary = BINARY_EXTENSIONS.has(ext);
+
+        if (isBinary) {
+            this._loadBinaryMessage(filename);
+            return;
         }
 
         // If the file was already loaded, restore from memory (preserves unsaved changes)
@@ -190,7 +274,8 @@ class PlayerEditor {
             this.fileStates.set(filename, {
                 originalContent: data.content,
                 currentContent: data.content,
-                isModified: false
+                isModified: false,
+                isBinary: false
             });
 
             this._loadContentIntoEditor(filename, data.content);
@@ -234,7 +319,7 @@ class PlayerEditor {
 
         // Flush editor value to state map first
         const state = this.fileStates.get(this.currentFile);
-        if (!state) return;
+        if (!state || state.isBinary) return;
 
         state.currentContent = this.editor.getValue();
         await this._saveFile(this.currentFile, state.currentContent);
@@ -243,13 +328,13 @@ class PlayerEditor {
     // ── Save all modified files ───────────────────────────────────────────────
 
     async saveAllFiles() {
-        const dirty = [...this.fileStates.entries()].filter(([, s]) => s.isModified && s.originalContent !== null);
+        const dirty = [...this.fileStates.entries()].filter(([, s]) => s.isModified && s.originalContent !== null && !s.isBinary);
         if (dirty.length === 0) return;
 
         // Flush current editor content before saving
         if (this.currentFile) {
             const state = this.fileStates.get(this.currentFile);
-            if (state) state.currentContent = this.editor.getValue();
+            if (state && !state.isBinary) state.currentContent = this.editor.getValue();
         }
 
         this.saveAllBtn.disabled = true;
